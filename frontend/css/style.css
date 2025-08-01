@@ -176,7 +176,6 @@ button {
     text-transform: uppercase;
     letter-spacing: 0.5px;
     white-space: nowrap;
-    /* ИЗМЕНЕНО: Добавлено для центрирования текста */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -323,7 +322,7 @@ select {
     text-align: center;
     font-size: 14px;
     border-radius: var(--border-radius-small);
-    /* -moz-appearance: textfield; */
+    -moz-appearance: textfield;
 }
 .initiative-input::-webkit-outer-spin-button,
 .initiative-input::-webkit-inner-spin-button {
@@ -455,6 +454,10 @@ select {
     box-shadow: 0 10px 40px rgba(0,0,0,0.4);
     transform: scale(0.95);
     transition: transform var(--transition-speed) ease;
+    /* ИЗМЕНЕНО: Позволяем дочернему элементу управлять скроллом */
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 .modal-overlay:not(.hidden) .sheet-modal-content {
     transform: scale(1);
@@ -484,7 +487,7 @@ select {
     box-shadow: none;
 }
 
-/* Стили для панели кубиков */
+/* === Стили для панели кубиков === */
 #dice-roller-panel #dice-buttons {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(40px, 1fr));
@@ -507,4 +510,222 @@ select {
 #dice-roller-panel #dice-buttons button.active {
     background-color: var(--accent-primary-hover);
     box-shadow: 0 0 10px rgba(0, 223, 252, 0.4);
+}
+
+/* === Стили для листа персонажа === */
+.character-sheet {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+.sheet-header {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.char-name-section input {
+    font-size: 2em;
+    font-weight: 700;
+    padding: 10px;
+    border: none;
+    background: transparent;
+    border-bottom: 1px solid var(--border-color);
+    border-radius: 0;
+}
+.header-info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+}
+.header-section {
+    display: flex;
+    flex-direction: column;
+}
+.header-section .label {
+    font-size: 10px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+.char-sheet-input {
+    background-color: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border-color);
+    border-radius: 0;
+    padding: 6px 2px;
+    color: var(--text-primary);
+    font-size: 14px;
+}
+.char-sheet-input:focus {
+    border-bottom-color: var(--accent-primary);
+}
+.sheet-main {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr 1fr;
+    gap: 15px;
+    flex-grow: 1;
+    overflow: hidden;
+}
+.main-column-left, .main-column-center, .main-column-right {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+.abilities-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+.ability-score {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-color: var(--bg-light-accent);
+    padding: 10px;
+    border-radius: var(--border-radius-small);
+}
+.ability-score .label {
+    font-size: 12px;
+    font-weight: 700;
+}
+.modifier-input {
+    font-size: 2em;
+    font-weight: 700;
+    width: 100%;
+    text-align: center;
+    border: none;
+    background: transparent;
+    color: var(--text-primary);
+}
+.score-input {
+    background-color: var(--bg-dark-secondary);
+    text-align: center;
+    border-radius: 8px;
+    padding: 4px;
+    margin-top: 5px;
+    border: 1px solid var(--border-color);
+}
+.sub-column {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 15px;
+    align-items: start;
+}
+.proficiency-bonus-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-light-accent);
+    padding: 10px;
+    border-radius: var(--border-radius-small);
+}
+.proficiency-bonus-section input {
+    font-size: 1.5em;
+    font-weight: 700;
+    width: 50px;
+    text-align: center;
+    padding: 5px;
+}
+.proficiency-bonus-section .label {
+    font-size: 10px;
+    text-align: center;
+    line-height: 1.2;
+    margin-top: 5px;
+}
+.saving-throws-section, .skills-section {
+    background: var(--bg-light-accent);
+    padding: 15px;
+    border-radius: var(--border-radius-small);
+}
+.saving-throws-section h3, .skills-section h3 {
+    margin: 0 0 10px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid var(--border-color);
+    text-align: center;
+    font-size: 1em;
+}
+.saving-throws-section ul, .skills-section ul {
+    list-style: none;
+}
+.skill-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 5px;
+    font-size: 14px;
+}
+.proficient-checkbox {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
+.skill-bonus {
+    font-weight: 700;
+    min-width: 25px;
+    text-align: right;
+}
+.skill-ability {
+    color: var(--text-secondary);
+    font-size: 0.8em;
+}
+.combat-stats-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    text-align: center;
+}
+.combat-stat {
+    background: var(--bg-light-accent);
+    padding: 10px;
+    border-radius: var(--border-radius-small);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+.combat-stat input {
+    font-size: 2em;
+    font-weight: 700;
+    text-align: center;
+    padding: 5px;
+}
+.hp-section {
+    background: var(--bg-light-accent);
+    padding: 15px;
+    border-radius: var(--border-radius-main);
+    text-align: center;
+}
+.hp-section .label {
+    font-size: 12px;
+    text-transform: uppercase;
+}
+.hp-current input {
+    font-size: 2.5em;
+    font-weight: 700;
+    width: 80%;
+    margin: 5px auto;
+}
+.attacks-section, .features-section, .equipment-section {
+    background: var(--bg-light-accent);
+    padding: 15px;
+    border-radius: var(--border-radius-small);
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+}
+.attacks-section h3, .features-section h3, .equipment-section h3 {
+     margin: 0 0 10px;
+    padding-bottom: 5px;
+    border-bottom: 1px solid var(--border-color);
+    text-align: center;
+    font-size: 1em;
+}
+.attacks-section textarea, .features-section textarea, .equipment-section textarea {
+    flex-grow: 1;
+    resize: none;
+    background: var(--bg-dark-secondary);
+    padding: 10px;
+    border-radius: var(--border-radius-small);
+    border: 1px solid var(--border-color);
 }

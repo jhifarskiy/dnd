@@ -53,28 +53,132 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedCharacterForMove = null;
     let hoveredCell = null;
     let animationFrameId = null;
+    let sheetUpdateTimeout = null;
 
-    // --- HTML-шаблон для листа персонажа ---
+    // --- СПИСКИ ДАННЫХ ДЛЯ ГЕНЕРАЦИИ ЛИСТА ---
+    const ABILITIES = {
+        strength: 'СИЛА',
+        dexterity: 'ЛОВКОСТЬ',
+        constitution: 'ТЕЛОСЛОЖЕНИЕ',
+        intelligence: 'ИНТЕЛЛЕКТ',
+        wisdom: 'МУДРОСТЬ',
+        charisma: 'ХАРИЗМА'
+    };
+
+    const SKILLS = {
+        acrobatics: { label: 'Акробатика', ability: 'dexterity' },
+        animalHandling: { label: 'Уход за животными', ability: 'wisdom' },
+        arcana: { label: 'Магия', ability: 'intelligence' },
+        athletics: { label: 'Атлетика', ability: 'strength' },
+        deception: { label: 'Обман', ability: 'charisma' },
+        history: { label: 'История', ability: 'intelligence' },
+        insight: { label: 'Проницательность', ability: 'wisdom' },
+        intimidation: { label: 'Запугивание', ability: 'charisma' },
+        investigation: { label: 'Анализ', ability: 'intelligence' },
+        medicine: { label: 'Медицина', ability: 'wisdom' },
+        nature: { label: 'Природа', ability: 'intelligence' },
+        perception: { label: 'Внимательность', ability: 'wisdom' },
+        performance: { label: 'Выступление', ability: 'charisma' },
+        persuasion: { label: 'Убеждение', ability: 'charisma' },
+        religion: { label: 'Религия', ability: 'intelligence' },
+        sleightOfHand: { label: 'Ловкость рук', ability: 'dexterity' },
+        stealth: { label: 'Скрытность', ability: 'dexterity' },
+        survival: { label: 'Выживание', ability: 'wisdom' }
+    };
+
+
+    // --- ГЕНЕРАЦИЯ HTML ЛИСТА ПЕРСОНАЖА ---
     function getCharacterSheetHTML() {
+        const abilitiesHTML = Object.entries(ABILITIES).map(([key, label]) => `
+            <div class="ability-score">
+                <span class="label">${label}</span>
+                <input type="text" data-field="${key}Modifier" class="modifier-input" readonly>
+                <input type="number" data-field="${key}" class="score-input char-sheet-input">
+            </div>
+        `).join('');
+
+        const savingThrowsHTML = Object.entries(ABILITIES).map(([key, label]) => `
+             <li class="skill-item">
+                <input type="checkbox" data-field="${key}SaveProficient" class="char-sheet-input proficient-checkbox">
+                <span class="skill-bonus" data-field="${key}Save" readonly>+0</span>
+                <span class="skill-label">${label}</span>
+            </li>
+        `).join('');
+
+        const skillsHTML = Object.entries(SKILLS).map(([key, {label, ability}]) => `
+            <li class="skill-item">
+                <input type="checkbox" data-field="${key}Proficient" class="char-sheet-input proficient-checkbox">
+                <span class="skill-bonus" data-field="${key}" readonly>+0</span>
+                <span class="skill-label">${label} <span class="skill-ability">(${ABILITIES[ability].slice(0,3)})</span></span>
+            </li>
+        `).join('');
+
         return `
+        <div class="character-sheet">
             <header class="sheet-header">
-                <div class="header-section"><span class="label">ИМЯ ПЕРСОНАЖА</span><input type="text" id="characterName" value="Имя"></div>
-                <div class="header-section"><span class="label">КЛАСС И УРОВЕНЬ</span><p>Класс 1</p></div>
-                <div class="header-section"><span class="label">ПРЕДЫСТОРИЯ</span><p>Предыстория</p></div>
-                <div class="header-section"><span class="label">ИМЯ ИГРОКА</span><p>${userData.username}</p></div>
-                <div class="header-section"><span class="label">РАСА</span><p>Раса</p></div>
-                <div class="header-section"><span class="label">МИРОВОЗЗРЕНИЕ</span><p>Мировоззрение</p></div>
+                <div class="header-section char-name-section">
+                    <input type="text" data-field="name" class="char-sheet-input" id="characterName" placeholder="Имя персонажа">
+                </div>
+                 <div class="header-info-grid">
+                    <div class="header-section"><span class="label">КЛАСС И УРОВЕНЬ</span><input type="text" data-field="classLevel" class="char-sheet-input"></div>
+                    <div class="header-section"><span class="label">ПРЕДЫСТОРИЯ</span><input type="text" data-field="background" class="char-sheet-input"></div>
+                    <div class="header-section"><span class="label">ИМЯ ИГРОКА</span><input type="text" data-field="playerName" class="char-sheet-input" readonly></div>
+                    <div class="header-section"><span class="label">РАСА</span><input type="text" data-field="race" class="char-sheet-input"></div>
+                    <div class="header-section"><span class="label">МИРОВОЗЗРЕНИЕ</span><input type="text" data-field="alignment" class="char-sheet-input"></div>
+                    <div class="header-section"><span class="label">ОПЫТ</span><input type="number" data-field="experience" class="char-sheet-input"></div>
+                </div>
             </header>
+
             <main class="sheet-main">
-                <section class="abilities-section">
-                </section>
-                <section class="combat-section">
-                </section>
+                <div class="main-column-left">
+                    <div class="abilities-section">${abilitiesHTML}</div>
+                    <div class="sub-column">
+                        <div class="proficiency-bonus-section">
+                            <input type="number" data-field="proficiencyBonus" class="char-sheet-input">
+                            <span class="label">БОНУС МАСТЕРСТВА</span>
+                        </div>
+                        <div class="saving-throws-section">
+                            <h3>СПАСБРОСКИ</h3>
+                            <ul>${savingThrowsHTML}</ul>
+                        </div>
+                    </div>
+                    <div class="skills-section">
+                        <h3>НАВЫКИ</h3>
+                        <ul>${skillsHTML}</ul>
+                    </div>
+                </div>
+                <div class="main-column-center">
+                    <div class="combat-stats-section">
+                         <div class="combat-stat"><span class="label">КЛАСС БРОНИ</span><input type="number" data-field="ac" class="char-sheet-input"></div>
+                         <div class="combat-stat"><span class="label">ИНИЦИАТИВА</span><input type="text" data-field="initiative" class="char-sheet-input" readonly></div>
+                         <div class="combat-stat"><span class="label">СКОРОСТЬ</span><input type="text" data-field="speed" class="char-sheet-input"></div>
+                    </div>
+                     <div class="hp-section">
+                        <div class="hp-max"><span class="label">Максимум хитов</span><input type="number" data-field="maxHp" class="char-sheet-input"></div>
+                        <div class="hp-current"><span class="label">ТЕКУЩИЕ ХИТЫ</span><input type="number" data-field="currentHp" class="char-sheet-input"></div>
+                        <div class="hp-temp"><span class="label">Временные хиты</span><input type="number" data-field="tempHp" class="char-sheet-input"></div>
+                    </div>
+                    <div class="attacks-section">
+                        <h3>АТАКИ И ЗАКЛИНАНИЯ</h3>
+                        <textarea data-field="attacks" class="char-sheet-input"></textarea>
+                    </div>
+                </div>
+                <div class="main-column-right">
+                    <div class="features-section">
+                        <h3>УМЕНИЯ И ОСОБЕННОСТИ</h3>
+                        <textarea data-field="features" class="char-sheet-input"></textarea>
+                    </div>
+                    <div class="equipment-section">
+                         <h3>СНАРЯЖЕНИЕ</h3>
+                        <textarea data-field="equipment" class="char-sheet-input"></textarea>
+                    </div>
+                </div>
             </main>
+        </div>
         `;
     }
 
-    // --- Логика аутентификации ---
+    // --- ЛОГИКА АУТЕНТИФИКАЦИИ ---
     function setupAuthEventListeners() {
         showRegisterLink.addEventListener('click', (e) => { e.preventDefault(); loginForm.classList.add('hidden'); registerForm.classList.remove('hidden'); authMessage.textContent = ''; });
         showLoginLink.addEventListener('click', (e) => { e.preventDefault(); registerForm.classList.add('hidden'); loginForm.classList.remove('hidden'); authMessage.textContent = ''; });
@@ -190,9 +294,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Логика приложения ---
+    // --- ЛОГИКА ПРИЛОЖЕНИЯ ---
     function initializeApp() {
-        loadCharacterBtn.textContent = 'Выбрать'; // ИЗМЕНЕНО
+        loadCharacterBtn.textContent = 'Выбрать';
         if (isGm) {
             characterManagerPanel.classList.add('hidden');
         } else {
@@ -331,10 +435,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 ctx.stroke();
             }
 
-            if (currentTurnCombatant && currentTurnCombatant.targetId === char._id) {
-                ctx.strokeStyle = 'rgba(255, 0, 0, 0.9)';
-                ctx.lineWidth = 4;
-                ctx.stroke();
+            if (currentTurnCombatant && findCombatantByCharacterId(char._id) && currentTurnCombatant.targetId === findCombatantByCharacterId(char._id)._id.toString()) {
+                 ctx.strokeStyle = 'rgba(255, 0, 0, 0.9)';
+                 ctx.lineWidth = 4;
+                 ctx.stroke();
             }
         });
 
@@ -400,8 +504,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function findCharacterByCombatantId(combatantId) {
         if (!currentCombatState) return null;
         const combatant = currentCombatState.combatants.find(c => c._id.toString() === combatantId);
-        if (!combatant || !combatant.isPlayer) return null;
-        return mapData.characters.find(char => char._id === combatant.characterId);
+        if (!combatant) return null;
+        // Возвращаем сам комбатант если это NPC, или соответствующего персонажа, если игрок
+        return combatant.isPlayer ? mapData.characters.find(char => char._id === combatant.characterId) : combatant;
     }
     
     function loadMapBackground(url) {
@@ -474,7 +579,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             headers: { 'Authorization': `Bearer ${userData.token}` }
                         });
                         if (!response.ok) {
-                           console.error('Failed to roll initiative for all');
+                           const err = await response.json();
+                           console.error('Failed to roll initiative for all:', err.message);
                         }
                     } catch (error) {
                         console.error('Error rolling initiative:', error);
@@ -610,6 +716,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
                 if (clickedCharToken && (isGm || isMyTurn)) {
                     const clickedCombatant = findCombatantByCharacterId(clickedCharToken._id);
+                    // Убедимся, что комбатант найден и это не тот, кто сейчас ходит
                     if (clickedCombatant && currentTurnCombatant._id.toString() !== clickedCombatant._id.toString()) {
                         socket.emit('combat:set_target', { 
                             targetId: clickedCombatant._id.toString() 
@@ -620,7 +727,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         
-            if (clickedCharToken && clickedCharToken._id === activeCharacterId) {
+            if (clickedCharToken && (isGm || clickedCharToken._id === activeCharacterId)) {
                 selectedCharacterForMove = selectedCharacterForMove === clickedCharToken._id ? null : clickedCharToken._id;
             } else if (selectedCharacterForMove && hoveredCell) {
                 const charToMove = mapData.characters.find(c => c._id === selectedCharacterForMove);
@@ -651,6 +758,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             sheetContainer.innerHTML = getCharacterSheetHTML();
+            populateSheet(currentCharacterData);
             sheetModal.classList.remove('hidden');
         });
 
@@ -664,6 +772,106 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
+    // --- ЛОГИКА ЛИСТА ПЕРСОНАЖА ---
+    function populateSheet(charData) {
+        const sheet = sheetContainer.querySelector('.character-sheet');
+        if (!sheet) return;
+
+        const inputs = sheet.querySelectorAll('.char-sheet-input');
+        inputs.forEach(input => {
+            const field = input.dataset.field;
+            if (field in charData) {
+                if (input.type === 'checkbox') {
+                    input.checked = charData[field];
+                } else {
+                    input.value = charData[field] || '';
+                }
+            }
+        });
+        
+        const playerNameInput = sheet.querySelector('[data-field="playerName"]');
+        if (playerNameInput) playerNameInput.value = userData.username;
+
+        updateCalculatedFields(sheet, charData);
+    }
+    
+    function updateCalculatedFields(sheet, charData) {
+        if (!sheet || !charData) return;
+        
+        const proficiencyBonus = parseInt(charData.proficiencyBonus) || 0;
+
+        for (const key in ABILITIES) {
+            const score = parseInt(charData[key]) || 10;
+            const modifier = Math.floor((score - 10) / 2);
+            const modString = modifier >= 0 ? `+${modifier}` : modifier;
+            sheet.querySelector(`[data-field="${key}Modifier"]`).value = modString;
+            
+            const saveProficient = charData[`${key}SaveProficient`];
+            const saveBonus = modifier + (saveProficient ? proficiencyBonus : 0);
+            const saveBonusString = saveBonus >= 0 ? `+${saveBonus}` : saveBonus;
+            sheet.querySelector(`[data-field="${key}Save"]`).textContent = saveBonusString;
+        }
+        
+        const dexModifier = Math.floor(((parseInt(charData.dexterity) || 10) - 10) / 2);
+        sheet.querySelector('[data-field="initiative"]').value = dexModifier >= 0 ? `+${dexModifier}` : dexModifier;
+
+        for (const key in SKILLS) {
+            const skill = SKILLS[key];
+            const abilityScore = parseInt(charData[skill.ability]) || 10;
+            const abilityModifier = Math.floor((abilityScore - 10) / 2);
+            const isProficient = charData[`${key}Proficient`];
+            const skillBonus = abilityModifier + (isProficient ? proficiencyBonus : 0);
+            const skillBonusString = skillBonus >= 0 ? `+${skillBonus}` : skillBonus;
+            sheet.querySelector(`[data-field="${key}"]`).textContent = skillBonusString;
+        }
+    }
+
+    async function saveSheetData() {
+        if (!activeCharacterId) return;
+
+        const sheet = sheetContainer.querySelector('.character-sheet');
+        if (!sheet) return;
+        
+        const dataToSave = { ...currentCharacterData };
+
+        const inputs = sheet.querySelectorAll('.char-sheet-input');
+        inputs.forEach(input => {
+            const field = input.dataset.field;
+            if (input.type === 'checkbox') {
+                dataToSave[field] = input.checked;
+            } else if (input.type === 'number') {
+                dataToSave[field] = parseInt(input.value) || 0;
+            } else {
+                dataToSave[field] = input.value;
+            }
+        });
+        
+        currentCharacterData = dataToSave;
+        updateCalculatedFields(sheet, currentCharacterData);
+
+        try {
+            await fetch(`${BACKEND_URL}/api/characters/${activeCharacterId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${userData.token}`
+                },
+                body: JSON.stringify(dataToSave)
+            });
+            socket.emit('character:join', currentCharacterData);
+        } catch (error) {
+            console.error("Failed to save character sheet:", error);
+        }
+    }
+    
+    sheetContainer.addEventListener('input', (e) => {
+        if (e.target.classList.contains('char-sheet-input')) {
+            clearTimeout(sheetUpdateTimeout);
+            sheetUpdateTimeout = setTimeout(saveSheetData, 1000);
+        }
+    });
+
+
     // --- Динамическое создание панели кубиков ---
     function createDiceRoller() {
         const rightSidebar = document.querySelector('.right-sidebar');
