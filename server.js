@@ -74,7 +74,7 @@ app.post('/api/auth/login', async (req, res) => {
         if (!isMatch) {
             return res.status(400).json({ message: "Неверный пароль." });
         }
-        const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '24h' });
+        const token = jwt.sign({ userId: user.id, username: user.username }, process.env.JWT_SECRET, { expiresIn: '24h' });
         res.json({ token, userId: user.id, username: user.username });
     } catch (error) {
         console.error("Ошибка при входе:", error);
@@ -213,6 +213,8 @@ app.put('/api/combat/roll-initiative', authMiddleware, async (req, res) => {
         const rollDie = (sides) => Math.floor(Math.random() * sides) + 1;
 
         const updatedCombatantsPromises = combatants.map(async (combatant) => {
+            if (combatant.initiative !== null) return combatant; // Не перебрасываем тем, у кого уже есть
+
             const initiativeRoll = rollDie(20);
             let modifier = 0;
 
@@ -233,11 +235,10 @@ app.put('/api/combat/roll-initiative', authMiddleware, async (req, res) => {
 
         const updatedCombatants = await Promise.all(updatedCombatantsPromises);
 
-        updatedCombatants.sort((a, b) => b.initiative - a.initiative);
+        updatedCombatants.sort((a, b) => (b.initiative || -1) - (a.initiative || -1));
         
         combatState.combatants = updatedCombatants;
-        combatState.turn = 0; 
-
+        
         await combatState.save(); 
 
         io.emit('combat:update', combatState);
@@ -299,10 +300,21 @@ mongoose.connect(process.env.MONGODB_URI)
 io.on('connection', (socket) => {
     console.log(`Пользователь подключен: ${socket.id}`);
 
+    socket.isGm = false;
     socket.characterId = null;
 
     socket.emit('map:update', activeCharacters);
     socket.emit('combat:update', combatState);
+
+    socket.on('user:identify', ({ username }) => {
+        socket.username = username;
+        if (username.toLowerCase() === 'gm') {
+            socket.isGm = true;
+            console.log(`Пользователь ${username} (${socket.id}) идентифицирован как ГМ.`);
+        } else {
+            console.log(`Пользователь ${username} (${socket.id}) идентифицирован как игрок.`);
+        }
+    });
 
     socket.on('character:join', (charData) => {
         socket.characterId = charData._id.toString();
@@ -362,7 +374,8 @@ io.on('connection', (socket) => {
     });
 
     socket.on('combat:start', async () => {
-        if (combatState && !combatState.isActive && activeCharacters.length > 0) {
+        if (!socket.isGm) return;
+        if (combatState && !combatState.isActive) {
             combatState.isActive = true;
             combatState.round = 1;
             combatState.turn = 0;
@@ -370,7 +383,9 @@ io.on('connection', (socket) => {
                 characterId: char._id,
                 name: char.name,
                 initiative: null,
-                isPlayer: true
+                isPlayer: true,
+                mapX: char.mapX,
+                mapY: char.mapY,
             }));
             await combatState.save();
             io.emit('combat:update', combatState);
@@ -378,6 +393,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('combat:end', async () => {
+        if (!socket.isGm) return;
         if (combatState && combatState.isActive) {
             combatState.isActive = false;
             combatState.combatants = [];
@@ -401,6 +417,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('combat:next_turn', async () => {
+        if (!socket.isGm) return;
         if (combatState && combatState.isActive && combatState.combatants.length > 0) {
             const currentCombatant = combatState.combatants[combatState.turn];
             if(currentCombatant) {
@@ -414,7 +431,6 @@ io.on('connection', (socket) => {
                 combatState.round++;
             }
             
-            // ИСПРАВЛЕНИЕ: Добавлена эта строка для надежного сохранения
             combatState.markModified('combatants');
             await combatState.save();
             io.emit('combat:update', combatState);
@@ -422,8 +438,9 @@ io.on('connection', (socket) => {
     });
 
     socket.on('combat:add_npc', async ({ name, initiative }) => {
+        if (!socket.isGm) return;
         if (combatState && combatState.isActive) {
-            combatState.combatants.push({ name, initiative: isNaN(initiative) ? null : initiative, isPlayer: false });
+            combatState.combatants.push({ name, initiative: isNaN(initiative) ? null : initiative, isPlayer: false, mapX: 100, mapY: 100 });
             combatState.combatants.sort((a, b) => (b.initiative || -1) - (a.initiative || -1));
             await combatState.save();
             io.emit('combat:update', combatState);
@@ -431,10 +448,18 @@ io.on('connection', (socket) => {
     });
 
     socket.on('combat:remove_combatant', async (combatantId) => {
+        if (!socket.isGm) return;
         if (combatState && combatState.isActive) {
-            combatState.combatants = combatState.combatants.filter(c => c._id.toString() !== combatantId);
+            const combatantIndex = combatState.combatants.findIndex(c => c._id.toString() === combatantId);
+            if(combatantIndex === -1) return;
             
-            if (combatState.turn >= combatState.combatants.length && combatState.combatants.length > 0) {
+            if (combatantIndex < combatState.turn) {
+                combatState.turn--;
+            }
+
+            combatState.combatants.splice(combatantIndex, 1);
+            
+            if (combatState.combatants.length > 0 && combatState.turn >= combatState.combatants.length) {
                 combatState.turn = 0; 
             } else if (combatState.combatants.length === 0) {
                 combatState.turn = 0;
@@ -450,27 +475,27 @@ io.on('connection', (socket) => {
     });
 
     socket.on('combat:set_target', async ({ targetId }) => {
-        if (combatState && combatState.isActive) {
-            const currentTurnIndex = combatState.turn;
-            
-            if (currentTurnIndex >= 0 && currentTurnIndex < combatState.combatants.length) {
-                const currentCombatant = combatState.combatants[currentTurnIndex];
+        if (!combatState || !combatState.isActive) return;
 
-                if (currentCombatant.targetId === targetId) {
-                    currentCombatant.targetId = null;
-                    currentCombatant.targetName = null;
-                } else {
-                    const targetCombatant = combatState.combatants.find(c => c._id.toString() === targetId);
-                    if (targetCombatant) {
-                        currentCombatant.targetId = targetId;
-                        currentCombatant.targetName = targetCombatant.name;
-                    }
-                }
+        const currentTurnCombatant = combatState.combatants[combatState.turn];
+        if (!currentTurnCombatant) return;
+        
+        const isMyTurn = currentTurnCombatant.characterId === socket.characterId;
+        if (!socket.isGm && !isMyTurn) return;
 
-                combatState.markModified('combatants');
-                await combatState.save();
-                io.emit('combat:update', combatState);
+        if (currentTurnCombatant.targetId === targetId) {
+            currentTurnCombatant.targetId = null;
+            currentTurnCombatant.targetName = null;
+        } else {
+            const targetCombatant = combatState.combatants.find(c => c._id.toString() === targetId);
+            if (targetCombatant) {
+                currentTurnCombatant.targetId = targetId;
+                currentTurnCombatant.targetName = targetCombatant.name;
             }
         }
+
+        combatState.markModified('combatants');
+        await combatState.save();
+        io.emit('combat:update', combatState);
     });
 });

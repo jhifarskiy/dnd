@@ -1,106 +1,51 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const BACKEND_URL = '';
+    const BACKEND_URL = ''; // Оставляем пустым для работы на одном домене
     let socket = io(BACKEND_URL);
 
     // --- DOM Элементы ---
     const authContainer = document.getElementById('auth-container');
-    const mainAppContainer = document.getElementById('main-app');
     const loginForm = document.getElementById('login-form');
     const registerForm = document.getElementById('register-form');
     const showRegisterLink = document.getElementById('showRegister');
     const showLoginLink = document.getElementById('showLogin');
     const loginBtn = document.getElementById('loginBtn');
     const registerBtn = document.getElementById('registerBtn');
+    const authMessage = document.getElementById('authMessage');
+    const mainAppContainer = document.getElementById('main-app');
     const logoutBtn = document.getElementById('logoutBtn');
     const usernameDisplay = document.getElementById('usernameDisplay');
-    const authMessage = document.getElementById('authMessage');
-    const characterSheet = document.getElementById('app');
-    const characterSelector = document.getElementById('characterSelector');
-    const loadCharacterBtn = document.getElementById('loadCharacterBtn');
-    const newCharacterBtn = document.getElementById('newCharacterBtn');
-    const deleteCharacterBtn = document.getElementById('deleteCharacterBtn');
-    
-    const characterNameInput = document.getElementById('characterName');
-    const characterClassLevel = document.getElementById('characterClassLevel');
-    const characterBackground = document.getElementById('characterBackground');
-    const characterPlayerName = document.getElementById('characterPlayerName');
-    const characterRace = document.getElementById('characterRace');
-    const characterAlignment = document.getElementById('characterAlignment');
-    const characterExperience = document.getElementById('characterExperience');
-
-    const proficiencyBonusInput = document.getElementById('proficiencyBonus');
-    const abilityScoreInputs = { strength: document.getElementById('strengthScore'), dexterity: document.getElementById('dexterityScore'), constitution: document.getElementById('constitutionScore'), intell: document.getElementById('intellScore'), wisdom: document.getElementById('wisdomScore'), charisma: document.getElementById('charismaScore') };
-    const abilityModifierInputs = { strength: document.getElementById('strengthModifier'), dexterity: document.getElementById('dexterityModifier'), constitution: document.getElementById('constitutionModifier'), intell: document.getElementById('intellModifier'), wisdom: document.getElementById('wisdomModifier'), charisma: document.getElementById('charismaModifier') };
-    const savingThrowCheckboxes = { strength: document.getElementById('strengthSaveProficient'), dexterity: document.getElementById('dexteritySaveProficient'), constitution: document.getElementById('constitutionSaveProficient'), intell: document.getElementById('intellSaveProficient'), wisdom: document.getElementById('wisdomSaveProficient'), charisma: document.getElementById('charismaSaveProficient') };
-    const savingThrowValues = { strength: document.getElementById('strengthSave'), dexterity: document.getElementById('dexteritySave'), constitution: document.getElementById('constitutionSave'), intell: document.getElementById('intellSave'), wisdom: document.getElementById('wisdomSave'), charisma: document.getElementById('charismaSave') };
-    const skillsConfig = { acrobatics: { ability: 'dexterity', proficientCheckbox: document.getElementById('acrobaticsProficient'), valueElement: document.getElementById('acrobaticsSkill')}, animalHandling: { ability: 'wisdom', proficientCheckbox: document.getElementById('animalHandlingProficient'), valueElement: document.getElementById('animalHandlingSkill')}, arcana: { ability: 'intell', proficientCheckbox: document.getElementById('arcanaProficient'), valueElement: document.getElementById('arcanaSkill')}, athletics: { ability: 'strength', proficientCheckbox: document.getElementById('athleticsProficient'), valueElement: document.getElementById('athleticsSkill')}, deception: { ability: 'charisma', proficientCheckbox: document.getElementById('deceptionProficient'), valueElement: document.getElementById('deceptionSkill')}, history: { ability: 'intell', proficientCheckbox: document.getElementById('historyProficient'), valueElement: document.getElementById('historySkill')}, insight: { ability: 'wisdom', proficientCheckbox: document.getElementById('insightProficient'), valueElement: document.getElementById('insightSkill')}, intimidation: { ability: 'charisma', proficientCheckbox: document.getElementById('intimidationProficient'), valueElement: document.getElementById('intimidationSkill')}, investigation: { ability: 'intell', proficientCheckbox: document.getElementById('investigationProficient'), valueElement: document.getElementById('investigationSkill')}, medicine: { ability: 'wisdom', proficientCheckbox: document.getElementById('medicineProficient'), valueElement: document.getElementById('medicineSkill')}, nature: { ability: 'intell', proficientCheckbox: document.getElementById('natureProficient'), valueElement: document.getElementById('natureSkill')}, perception: { ability: 'wisdom', proficientCheckbox: document.getElementById('perceptionProficient'), valueElement: document.getElementById('perceptionSkill')}, performance: { ability: 'charisma', proficientCheckbox: document.getElementById('performanceProficient'), valueElement: document.getElementById('performanceSkill')}, persuasion: { ability: 'charisma', proficientCheckbox: document.getElementById('persuasionProficient'), valueElement: document.getElementById('persuasionSkill')}, religion: { ability: 'intell', proficientCheckbox: document.getElementById('religionProficient'), valueElement: document.getElementById('religionSkill')}, sleightOfHand: { ability: 'dexterity', proficientCheckbox: document.getElementById('sleightOfHandProficient'), valueElement: document.getElementById('sleightOfHandSkill')}, stealth: { ability: 'dexterity', proficientCheckbox: document.getElementById('stealthProficient'), valueElement: document.getElementById('stealthSkill')}, survival: { ability: 'wisdom', proficientCheckbox: document.getElementById('survivalProficient'), valueElement: document.getElementById('survivalSkill')} };
-    const equipmentListDiv = document.getElementById('equipmentList');
-    const addEquipmentBtn = document.getElementById('addEquipmentBtn');
-    const spellsListDiv = document.getElementById('spellsList');
-    const addSpellBtn = document.getElementById('addSpellBtn');
-
-    const acDisplay = document.getElementById('AC');
-    const initiativeDisplay = document.getElementById('INITIATIVE');
-    const speedDisplay = document.getElementById('SPEED');
-    const maxHpDisplay = document.getElementById('MAX_HP');
-    const currentHpDisplay = document.getElementById('CURRENT_HP');
-    const tempHpDisplay = document.getElementById('TEMP_HP');
-    const featuresListDiv = document.getElementById('featuresList');
-
     const battleMapCanvas = document.getElementById('battleMap');
     const ctx = battleMapCanvas.getContext('2d');
     const gridSizeInput = document.getElementById('gridSize');
     const mapBackgroundInput = document.getElementById('mapBackground');
     const loadMapBackgroundBtn = document.getElementById('loadMapBackground');
+    const characterManagerPanel = document.getElementById('character-manager');
+    const characterSelector = document.getElementById('characterSelector');
+    const loadCharacterBtn = document.getElementById('loadCharacterBtn');
+    const newCharacterBtn = document.getElementById('newCharacterBtn');
+    const deleteCharacterBtn = document.getElementById('deleteCharacterBtn');
+    const openSheetBtn = document.getElementById('open-sheet-btn');
     const eventLogDisplay = document.getElementById('eventLogDisplay');
     const eventLogInput = document.getElementById('eventLogInput');
     const eventLogSendBtn = document.getElementById('eventLogSendBtn');
-    const startCombatBtn = document.getElementById('startCombatBtn');
-    const combatTrackerPanel = document.getElementById('combatTrackerPanel');
+    const combatTrackerPanel = document.getElementById('combat-tracker');
     const initiativeTracker = document.getElementById('initiativeTracker');
+    const startCombatBtn = document.getElementById('startCombatBtn');
     const nextTurnBtn = document.getElementById('nextTurnBtn');
     const endCombatBtn = document.getElementById('endCombatBtn');
     const addNpcBtn = document.getElementById('addNpcBtn');
     const npcNameInput = document.getElementById('npcNameInput');
     const npcInitiativeInput = document.getElementById('npcInitiativeInput');
-    const rollInitiativeBtn = document.getElementById('rollInitiativeBtn');
-    
-    const otherCharacterSheetModal = document.getElementById('otherCharacterSheetModal');
-    const otherCharacterSheetCloseBtn = otherCharacterSheetModal.querySelector('.close-button');
-    const otherCharNameInput = document.getElementById('otherCharName');
-    const otherCharClassLevel = document.getElementById('otherCharClassLevel');
-    const otherCharBackground = document.getElementById('otherCharBackground');
-    const otherCharPlayerName = document.getElementById('otherCharPlayerName');
-    const otherCharRace = document.getElementById('otherCharRace');
-    const otherCharAlignment = document.getElementById('otherCharAlignment');
-    const otherCharExperience = document.getElementById('otherCharExperience');
-    const otherCharStrengthScore = document.getElementById('otherCharStrengthScore');
-    const otherCharStrengthModifier = document.getElementById('otherCharStrengthModifier');
-    const otherCharDexterityScore = document.getElementById('otherCharDexterityScore');
-    const otherCharDexterityModifier = document.getElementById('otherCharDexterityModifier');
-    const otherCharConstitutionScore = document.getElementById('otherCharConstitutionScore');
-    const otherCharConstitutionModifier = document.getElementById('otherCharConstitutionModifier');
-    const otherCharIntellScore = document.getElementById('otherCharIntellScore');
-    const otherCharIntellModifier = document.getElementById('otherCharIntellModifier');
-    const otherCharWisdomScore = document.getElementById('otherCharWisdomScore');
-    const otherCharWisdomModifier = document.getElementById('otherCharWisdomModifier');
-    const otherCharCharismaScore = document.getElementById('otherCharCharismaScore');
-    const otherCharCharismaModifier = document.getElementById('otherCharCharismaModifier');
-    const otherCharAC = document.getElementById('otherCharAC');
-    const otherCharInitiative = document.getElementById('otherCharInitiative');
-    const otherCharSpeed = document.getElementById('otherCharSpeed');
-    const otherCharMaxHP = document.getElementById('otherCharMaxHP');
-    const otherCharCurrentHP = document.getElementById('otherCharCurrentHP');
-    const otherCharTempHP = document.getElementById('otherCharTempHP');
-    const otherCharProficiencyBonus = document.getElementById('otherCharProficiencyBonus');
-    const otherCharSavingThrowCheckboxes = { strength: document.getElementById('otherCharStrengthSaveProficient'), dexterity: document.getElementById('otherCharDexteritySaveProficient'), constitution: document.getElementById('otherCharConstitutionSaveProficient'), intell: document.getElementById('otherCharIntellSaveProficient'), wisdom: document.getElementById('otherCharWisdomSaveProficient'), charisma: document.getElementById('otherCharCharismaSaveProficient') };
-    const otherCharSavingThrowValues = { strength: document.getElementById('otherCharStrengthSave'), dexterity: document.getElementById('otherCharDexteritySave'), constitution: document.getElementById('otherCharConstitutionSave'), intell: document.getElementById('otherCharIntellSave'), wisdom: document.getElementById('otherCharWisdomSave'), charisma: document.getElementById('otherCharCharismaSave') };
-    const otherCharSkillsConfig = { acrobatics: { ability: 'dexterity', proficientCheckbox: document.getElementById('otherCharAcrobaticsProficient'), valueElement: document.getElementById('otherCharAcrobaticsSkill') }, animalHandling: { ability: 'wisdom', proficientCheckbox: document.getElementById('otherCharAnimalHandlingProficient'), valueElement: document.getElementById('otherCharAnimalHandlingSkill') }, arcana: { ability: 'intell', proficientCheckbox: document.getElementById('otherCharArcanaProficient'), valueElement: document.getElementById('otherCharArcanaSkill') }, athletics: { ability: 'strength', proficientCheckbox: document.getElementById('otherCharAthleticsProficient'), valueElement: document.getElementById('otherCharAthleticsSkill') }, deception: { ability: 'charisma', proficientCheckbox: document.getElementById('otherCharDeceptionProficient'), valueElement: document.getElementById('otherCharDeceptionSkill') }, history: { ability: 'intell', proficientCheckbox: document.getElementById('otherCharHistoryProficient'), valueElement: document.getElementById('otherCharHistorySkill') }, insight: { ability: 'wisdom', proficientCheckbox: document.getElementById('otherCharInsightProficient'), valueElement: document.getElementById('otherCharInsightSkill') }, intimidation: { ability: 'charisma', proficientCheckbox: document.getElementById('otherCharIntimidationProficient'), valueElement: document.getElementById('otherCharIntimidationSkill') }, investigation: { ability: 'intell', proficientCheckbox: document.getElementById('otherCharInvestigationProficient'), valueElement: document.getElementById('otherCharInvestigationSkill') }, medicine: { ability: 'wisdom', proficientCheckbox: document.getElementById('medicineProficient'), valueElement: document.getElementById('medicineSkill') }, nature: { ability: 'intell', proficientCheckbox: document.getElementById('natureProficient'), valueElement: document.getElementById('natureSkill') }, perception: { ability: 'wisdom', proficientCheckbox: document.getElementById('perceptionProficient'), valueElement: document.getElementById('perceptionSkill') }, performance: { ability: 'charisma', proficientCheckbox: document.getElementById('performanceProficient'), valueElement: document.getElementById('performanceSkill') }, persuasion: { ability: 'charisma', proficientCheckbox: document.getElementById('persuasionProficient'), valueElement: document.getElementById('persuasionSkill') }, religion: { ability: 'intell', proficientCheckbox: document.getElementById('religionProficient'), valueElement: document.getElementById('religionSkill') }, sleightOfHand: { ability: 'dexterity', proficientCheckbox: document.getElementById('sleightOfHandProficient'), valueElement: document.getElementById('sleightOfHandSkill') }, stealth: { ability: 'dexterity', proficientCheckbox: document.getElementById('stealthProficient'), valueElement: document.getElementById('stealthSkill') }, survival: { ability: 'wisdom', proficientCheckbox: document.getElementById('survivalProficient'), valueElement: document.getElementById('survivalSkill')} };
-    const otherCharFeaturesList = document.getElementById('otherCharFeaturesList');
-    const otherCharEquipmentList = document.getElementById('otherCharEquipmentList');
-    const otherCharSpellsList = document.getElementById('otherCharSpellsList');
-    
+    const addNpcForm = document.getElementById('add-npc-form');
+    const combatControls = document.getElementById('combat-controls');
+    const sheetModal = document.getElementById('sheet-modal');
+    const closeSheetBtn = document.getElementById('close-sheet-btn');
+    const sheetContainer = document.getElementById('character-sheet-container');
+
+
+    // --- Состояние приложения ---
     let userData = { token: null, userId: null, username: null };
+    let isGm = false;
     let activeCharacterId = null;
     let currentCharacterData = {};
     let currentCombatState = null;
@@ -109,10 +54,49 @@ document.addEventListener('DOMContentLoaded', () => {
     let hoveredCell = null;
     let animationFrameId = null;
 
+    // --- HTML-шаблон для листа персонажа ---
+    function getCharacterSheetHTML() {
+        return `
+            <header class="sheet-header">
+                <div class="header-section"><span class="label">ИМЯ ПЕРСОНАЖА</span><input type="text" id="characterName" value="Имя"></div>
+                <div class="header-section"><span class="label">КЛАСС И УРОВЕНЬ</span><p>Класс 1</p></div>
+                <div class="header-section"><span class="label">ПРЕДЫСТОРИЯ</span><p>Предыстория</p></div>
+                <div class="header-section"><span class="label">ИМЯ ИГРОКА</span><p>${userData.username}</p></div>
+                <div class="header-section"><span class="label">РАСА</span><p>Раса</p></div>
+                <div class="header-section"><span class="label">МИРОВОЗЗРЕНИЕ</span><p>Мировоззрение</p></div>
+            </header>
+            <main class="sheet-main">
+                <section class="abilities-section">
+                </section>
+                <section class="combat-section">
+                </section>
+            </main>
+        `;
+    }
+
+    // --- Логика аутентификации ---
     function setupAuthEventListeners() {
         showRegisterLink.addEventListener('click', (e) => { e.preventDefault(); loginForm.classList.add('hidden'); registerForm.classList.remove('hidden'); authMessage.textContent = ''; });
         showLoginLink.addEventListener('click', (e) => { e.preventDefault(); registerForm.classList.add('hidden'); loginForm.classList.remove('hidden'); authMessage.textContent = ''; });
-        registerBtn.addEventListener('click', async () => {
+
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+            try {
+                const response = await fetch(`${BACKEND_URL}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
+                const data = await response.json();
+                if (response.ok) {
+                    login(data);
+                } else {
+                    authMessage.textContent = data.message;
+                    authMessage.style.color = 'var(--accent-danger)';
+                }
+            } catch (e) { authMessage.textContent = 'Ошибка сети'; }
+        });
+
+        registerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
             const username = document.getElementById('registerUsername').value;
             const password = document.getElementById('registerPassword').value;
             try {
@@ -120,38 +104,35 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = await response.json();
                 authMessage.textContent = data.message;
                 if (response.ok) {
-                    authMessage.style.color = 'green';
+                    authMessage.style.color = 'var(--accent-primary)';
                     document.getElementById('registerUsername').value = '';
                     document.getElementById('registerPassword').value = '';
                     setTimeout(() => showLoginLink.click(), 1000);
-                } else { authMessage.style.color = 'red'; }
-            } catch (e) { authMessage.textContent = 'Ошибка сети'; }
-        });
-        loginBtn.addEventListener('click', async () => {
-            const username = document.getElementById('loginUsername').value;
-            const password = document.getElementById('loginPassword').value;
-            try {
-                const response = await fetch(`${BACKEND_URL}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
-                const data = await response.json();
-                if (response.ok) { login(data); } 
-                else {
-                    authMessage.textContent = data.message;
-                    authMessage.style.color = 'red';
+                } else {
+                    authMessage.style.color = 'var(--accent-danger)';
                 }
             } catch (e) { authMessage.textContent = 'Ошибка сети'; }
         });
+
         logoutBtn.addEventListener('click', logout);
     }
-    
+
     function login({ token, userId, username }) {
         userData = { token, userId, username };
         localStorage.setItem('userData', JSON.stringify(userData));
+        
+        if (username.toLowerCase() === 'gm') {
+            isGm = true;
+        }
+
         authContainer.classList.add('hidden');
         mainAppContainer.classList.remove('hidden');
         usernameDisplay.textContent = username;
         initializeApp();
+        
+        socket.emit('user:identify', { username: userData.username });
     }
-    
+
     function logout() {
         userData = { token: null, userId: null, username: null };
         localStorage.removeItem('userData');
@@ -162,29 +143,72 @@ document.addEventListener('DOMContentLoaded', () => {
         const storedData = localStorage.getItem('userData');
         if (storedData) {
             const data = JSON.parse(storedData);
-            if (data.token) { login(data); }
+            if (data.token) {
+                login(data);
+            }
         } else {
             authContainer.classList.remove('hidden');
             mainAppContainer.classList.add('hidden');
         }
     }
 
-    socket.on('connect', () => { socket.emit('map:get'); socket.emit('combat:get'); });
-    socket.on('map:update', (allCharacters) => { mapData.characters = allCharacters; drawMap(); });
-    socket.on('log:new_message', (messageData) => { const messageElement = document.createElement('p'); const prefix = messageData.charName ? `<strong>${messageData.charName}:</strong>` : ''; messageElement.innerHTML = `${prefix} ${messageData.text}`; eventLogDisplay.appendChild(messageElement); eventLogDisplay.scrollTop = eventLogDisplay.scrollHeight; });
-    socket.on('combat:update', (newState) => {
-        currentCombatState = newState;
-        renderCombatTracker();
-        drawMap();
-    });
+    // --- WebSocket ---
+    function setupSocketListeners() {
+        socket.on('connect', () => {
+            console.log('Socket connected!');
+            if(userData.username) {
+                socket.emit('user:identify', { username: userData.username });
+            }
+            socket.emit('map:get');
+            socket.emit('combat:get');
+        });
+        socket.on('map:update', (allCharacters) => {
+            allCharacters.forEach(serverChar => {
+                const localChar = mapData.characters.find(c => c._id === serverChar._id);
+                if (!localChar) {
+                    serverChar.spawnTime = performance.now();
+                    serverChar.currentX = serverChar.mapX;
+                    serverChar.currentY = serverChar.mapY;
+                } else {
+                    serverChar.spawnTime = localChar.spawnTime;
+                    serverChar.currentX = localChar.currentX;
+                    serverChar.currentY = localChar.currentY;
+                }
+            });
+            mapData.characters = allCharacters;
+        });
+        socket.on('log:new_message', (messageData) => {
+            const messageElement = document.createElement('p');
+            const prefix = messageData.charName ? `<strong>${messageData.charName}:</strong>` : '';
+            messageElement.innerHTML = `${prefix} ${messageData.text}`;
+            eventLogDisplay.appendChild(messageElement);
+            eventLogDisplay.scrollTop = eventLogDisplay.scrollHeight;
+        });
+        socket.on('combat:update', (newState) => {
+            currentCombatState = newState;
+            renderCombatTracker();
+        });
+    }
 
+    // --- Логика приложения ---
     function initializeApp() {
+        loadCharacterBtn.textContent = 'Выбрать'; // ИЗМЕНЕНО
+        if (isGm) {
+            characterManagerPanel.classList.add('hidden');
+        } else {
+            characterManagerPanel.classList.remove('hidden');
+        }
+        createDiceRoller();
+        resizeCanvas();
         loadCharacterList();
         loadMapData();
         setupMainEventListeners();
+        setupSocketListeners();
+        gameLoop();
     }
-    
+
     async function loadCharacterList() {
+        if(isGm) return;
         try {
             const response = await fetch(`${BACKEND_URL}/api/characters`, { headers: { 'Authorization': `Bearer ${userData.token}` } });
             if (!response.ok) {
@@ -192,7 +216,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error('Failed to fetch characters');
             }
             const characters = await response.json();
-            characterSelector.innerHTML = '';
+            characterSelector.innerHTML = '<option disabled selected>-- Выберите персонажа --</option>';
             if (characters.length > 0) {
                 characters.forEach(char => {
                     const option = document.createElement('option');
@@ -200,23 +224,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     option.textContent = char.name;
                     characterSelector.appendChild(option);
                 });
-                loadCharacter(characterSelector.value);
-            } else {
-                characterSheet.style.display = 'none';
             }
         } catch (error) { console.error("Failed to load character list:", error); }
     }
 
     async function loadCharacter(id) {
-        if (!id) { characterSheet.style.display = 'none'; return; };
+        if (!id) return;
         try {
             const response = await fetch(`${BACKEND_URL}/api/characters/${id}`, { headers: { 'Authorization': `Bearer ${userData.token}` } });
             if (!response.ok) throw new Error('Character not found');
             currentCharacterData = await response.json();
             activeCharacterId = id;
-            populateFormWithData();
             socket.emit('character:join', currentCharacterData);
-            characterSheet.style.display = 'grid';
         } catch (error) { console.error("Failed to load character:", error); }
     }
 
@@ -232,340 +251,483 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function deleteCharacter() {
         const selectedId = characterSelector.value;
-        if (!selectedId) { alert("Персонаж не выбран."); return; }
+        if (!selectedId || characterSelector.selectedIndex === 0) { alert("Персонаж не выбран."); return; }
         const characterName = characterSelector.options[characterSelector.selectedIndex].text;
         if (confirm(`Вы уверены, что хотите удалить персонажа "${characterName}"?`)) {
             try {
                 await fetch(`${BACKEND_URL}/api/characters/${selectedId}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${userData.token}` } });
                 await loadCharacterList();
+                activeCharacterId = null;
+                currentCharacterData = {};
             } catch (error) { console.error("Failed to delete character:", error); }
         }
     }
-    
-    function populateFormWithData() {
-        characterNameInput.value = currentCharacterData.name || '';
-        proficiencyBonusInput.value = currentCharacterData.proficiencyBonus || '0';
-        characterClassLevel.textContent = currentCharacterData.classLevel || 'Класс 1 уровня';
-        characterBackground.textContent = currentCharacterData.background || 'Нет предыстории';
-        characterPlayerName.textContent = currentCharacterData.playerName || 'Имя Игрока';
-        characterRace.textContent = currentCharacterData.race || 'Раса';
-        characterAlignment.textContent = currentCharacterData.alignment || 'Мировоззрение';
-        characterExperience.textContent = currentCharacterData.experience || '0';
-        Object.keys(abilityScoreInputs).forEach(key => { abilityScoreInputs[key].value = currentCharacterData[key] || '10'; });
-        acDisplay.textContent = currentCharacterData.ac || '10';
-        speedDisplay.textContent = currentCharacterData.speed || '30';
-        maxHpDisplay.textContent = currentCharacterData.maxHp || '10';
-        currentHpDisplay.textContent = currentCharacterData.currentHp || '10';
-        tempHpDisplay.textContent = currentCharacterData.tempHp || '0';
-        Object.keys(savingThrowCheckboxes).forEach(key => { savingThrowCheckboxes[key].checked = currentCharacterData[`${key}SaveProficient`] || false; });
-        Object.keys(skillsConfig).forEach(key => { skillsConfig[key].proficientCheckbox.checked = currentCharacterData[`${key}Proficient`] || false; });
-        renderEquipment();
-        renderSpells();
-        updateDerivedValues();
-    }
-    
-    async function saveCharacterData() {
-        if (!activeCharacterId) return;
-        const formData = {
-            name: characterNameInput.value,
-            proficiencyBonus: parseInt(proficiencyBonusInput.value) || 0,
-            classLevel: characterClassLevel.textContent,
-            background: characterBackground.textContent,
-            playerName: characterPlayerName.textContent,
-            race: characterRace.textContent,
-            alignment: characterAlignment.textContent,
-            experience: parseInt(characterExperience.textContent) || 0,
-            ac: parseInt(acDisplay.textContent) || 0,
-            speed: parseInt(speedDisplay.textContent) || 0,
-            maxHp: parseInt(maxHpDisplay.textContent) || 0,
-            currentHp: parseInt(currentHpDisplay.textContent) || 0,
-            tempHp: parseInt(tempHpDisplay.textContent) || 0,
-            ...Object.fromEntries(Object.keys(abilityScoreInputs).map(key => [key, parseInt(abilityScoreInputs[key].value) || 10])),
-            ...Object.fromEntries(Object.keys(savingThrowCheckboxes).map(key => [`${key}SaveProficient`, savingThrowCheckboxes[key].checked])),
-            ...Object.fromEntries(Object.keys(skillsConfig).map(key => [`${key}Proficient`, skillsConfig[key].proficientCheckbox.checked])),
-            equipment: currentCharacterData.equipment || [],
-            spells: currentCharacterData.spells || []
-        };
-        try {
-            const response = await fetch(`${BACKEND_URL}/api/characters/${activeCharacterId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${userData.token}` }, body: JSON.stringify(formData) });
-            const updatedChar = await response.json();
-            currentCharacterData = updatedChar; 
-            socket.emit('character:join', currentCharacterData);
-        } catch (error) { console.error('Failed to save character:', error); }
-    }
 
-    function sendLogMessage() {
-        const messageText = eventLogInput.value.trim();
-        if (messageText) {
-            const messageData = { text: messageText, charName: currentCharacterData ? currentCharacterData.name : 'Система' };
+    function sendLogMessage(text) {
+        if (text && text.trim() !== '') {
+            const messageData = { text: text, charName: isGm ? 'Мастер' : (currentCharacterData.name || 'Игрок') };
             socket.emit('log:send', messageData);
-            eventLogInput.value = '';
         }
-    }
-    
-    function updateDerivedValues() {
-        const currentProficiencyBonus = parseInt(proficiencyBonusInput.value) || 0;
-        for (const key in abilityScoreInputs) {
-            const score = parseInt(abilityScoreInputs[key].value);
-            if (!isNaN(score)) {
-                const modifier = Math.floor((score - 10) / 2);
-                abilityModifierInputs[key].value = modifier >= 0 ? `+${modifier}` : `${modifier}`;
-            }
-        }
-        for (const key in savingThrowCheckboxes) {
-            const score = parseInt(abilityScoreInputs[key].value) || 10;
-            const isProficient = savingThrowCheckboxes[key].checked;
-            const modifier = Math.floor((score - 10) / 2);
-            const saveValue = (isProficient ? currentProficiencyBonus : 0) + modifier;
-            savingThrowValues[key].textContent = saveValue >= 0 ? `+${saveValue}` : `${saveValue}`;
-        }
-        for (const skillKey in skillsConfig) {
-            const config = skillsConfig[skillKey];
-            const abilityScore = parseInt(abilityScoreInputs[config.ability].value) || 10;
-            const isProficient = config.proficientCheckbox.checked;
-            const modifier = Math.floor((abilityScore - 10) / 2);
-            const skillValue = (isProficient ? currentProficiencyBonus : 0) + modifier;
-            config.valueElement.textContent = skillValue >= 0 ? `+${skillValue}` : `${skillValue}`;
-        }
-        const dexterityScoreForInitiative = parseInt(abilityScoreInputs.dexterity.value) || 10;
-        const initiativeModifier = Math.floor((dexterityScoreForInitiative - 10) / 2);
-        initiativeDisplay.textContent = initiativeModifier >= 0 ? `+${initiativeModifier}` : `${initiativeModifier}`;
     }
 
-    function renderEquipment() { equipmentListDiv.innerHTML = ''; if (!currentCharacterData.equipment) currentCharacterData.equipment = []; currentCharacterData.equipment.forEach((item, index) => { const itemDiv = document.createElement('div'); itemDiv.classList.add('equipment-item'); itemDiv.innerHTML = `<label>Имя: <input type="text" class="item-name" value="${item.name || ''}" data-index="${index}" data-field="name"></label><label>Кол-во: <input type="number" class="item-quantity" value="${item.quantity || 1}" data-index="${index}" data-field="quantity"></label><label>Описание: <textarea class="item-description" data-index="${index}" data-field="description">${item.description || ''}</textarea></label><button type="button" class="delete-btn" data-type="equipment" data-index="${index}">Удалить</button>`; equipmentListDiv.appendChild(itemDiv); }); }
-    function renderSpells() { spellsListDiv.innerHTML = ''; if (!currentCharacterData.spells) currentCharacterData.spells = []; const spellLevels = ["Заговор", "1", "2", "3", "4", "5", "6", "7", "8", "9"]; currentCharacterData.spells.forEach((spell, index) => { const spellDiv = document.createElement('div'); spellDiv.classList.add('spell-item'); const levelOptions = spellLevels.map(level => `<option value="${level}" ${spell.level === level ? 'selected' : ''}>${level}</option>`).join(''); spellDiv.innerHTML = `<label>Имя: <input type="text" class="spell-name" value="${spell.name || ''}" data-index="${index}" data-field="name"></label><label>Уровень: <select class="spell-level" data-index="${index}" data-field="level">${levelOptions}</select></label><label>Описание: <textarea class="spell-description" data-index="${index}" data-field="description">${spell.description || ''}</textarea></label><button type="button" class="delete-btn" data-type="spell" data-index="${index}">Удалить</button>`; spellsListDiv.appendChild(spellDiv); }); }
-    
+    // --- Логика карты ---
+    function resizeCanvas() {
+        const container = document.getElementById('map-container');
+        battleMapCanvas.width = container.clientWidth;
+        battleMapCanvas.height = container.clientHeight;
+    }
+
+    function gameLoop() {
+        drawMap();
+        requestAnimationFrame(gameLoop);
+    }
+
     function drawMap() {
         ctx.clearRect(0, 0, battleMapCanvas.width, battleMapCanvas.height);
-        if (mapData.backgroundImage) { ctx.drawImage(mapData.backgroundImage, 0, 0, battleMapCanvas.width, battleMapCanvas.height); } 
-        else { ctx.fillStyle = '#e0e0e0'; ctx.fillRect(0, 0, battleMapCanvas.width, battleMapCanvas.height); }
-        if (hoveredCell) { ctx.fillStyle = 'rgba(0, 255, 255, 0.3)'; ctx.fillRect(hoveredCell.x, hoveredCell.y, mapData.gridSize, mapData.gridSize); }
-        ctx.strokeStyle = '#a0a0a0';
-        ctx.lineWidth = 0.5;
+        if (mapData.backgroundImage) {
+            ctx.drawImage(mapData.backgroundImage, 0, 0, battleMapCanvas.width, battleMapCanvas.height);
+        } else {
+            ctx.fillStyle = 'rgba(0,0,0,0.2)';
+            ctx.fillRect(0, 0, battleMapCanvas.width, battleMapCanvas.height);
+        }
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.lineWidth = 1;
         for (let x = 0; x <= battleMapCanvas.width; x += mapData.gridSize) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, battleMapCanvas.height); ctx.stroke(); }
         for (let y = 0; y <= battleMapCanvas.height; y += mapData.gridSize) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(battleMapCanvas.width, y); ctx.stroke(); }
 
-        const currentCombatant = currentCombatState?.isActive ? currentCombatState.combatants[currentCombatState.turn] : null;
+        if (hoveredCell) {
+            ctx.fillStyle = 'rgba(0, 184, 212, 0.2)';
+            ctx.fillRect(hoveredCell.x, hoveredCell.y, mapData.gridSize, mapData.gridSize);
+        }
+        
+        const currentTime = performance.now();
+        const currentTurnCombatant = currentCombatState && currentCombatState.isActive ? currentCombatState.combatants[currentCombatState.turn] : null;
 
         mapData.characters.forEach(char => {
-            const radius = mapData.gridSize / 3;
-            const color = char._id === activeCharacterId ? 'blue' : 'green';
+            const lerpSpeed = 0.1;
+            char.currentX = lerp(char.currentX, char.mapX, lerpSpeed);
+            char.currentY = lerp(char.currentY, char.mapY, lerpSpeed);
+
+            const isSelf = char._id === activeCharacterId;
+            const isSelectedForMove = char._id === selectedCharacterForMove;
+            let radius = mapData.gridSize / 2.5;
+
+            if (char.spawnTime && currentTime - char.spawnTime < 1000) {
+                const pulse = Math.sin((currentTime - char.spawnTime) / 1000 * Math.PI * 2) * 2;
+                radius += pulse;
+            } else {
+                char.spawnTime = null;
+            }
+
             ctx.beginPath();
-            ctx.arc(char.mapX, char.mapY, radius, 0, Math.PI * 2);
-            ctx.fillStyle = color;
+            ctx.arc(char.currentX, char.currentY, radius, 0, Math.PI * 2);
+            ctx.fillStyle = isSelf ? 'rgba(0, 184, 212, 0.8)' : 'rgba(229, 57, 53, 0.8)';
             ctx.fill();
 
-            // === ИСПРАВЛЕННАЯ ЛОГИКА ПОДСВЕТКИ ЦЕЛИ ===
-            if (currentCombatant && currentCombatant.targetId) {
-                // Находим запись о рисуемом персонаже в списке участников боя
-                const combatantEntryForDrawnChar = currentCombatState.combatants.find(c => c.characterId === char._id);
-                // Проверяем, совпадает ли ID этой записи с ID цели атакующего
-                if (combatantEntryForDrawnChar && currentCombatant.targetId === combatantEntryForDrawnChar._id.toString()) {
-                    ctx.strokeStyle = 'red';
-                    ctx.lineWidth = 4;
-                    ctx.stroke();
-                }
-            }
-            
-            ctx.strokeStyle = 'black';
-            ctx.lineWidth = 1;
-            ctx.stroke();
-
-            if (selectedCharacterForMove === char._id && hoveredCell) {
+            if (isSelectedForMove) {
+                const selectionPulse = Math.sin(currentTime / 150) * 2;
                 ctx.strokeStyle = 'yellow';
-                ctx.lineWidth = 3;
+                ctx.lineWidth = 3 + selectionPulse;
                 ctx.stroke();
+            }
+
+            if (currentTurnCombatant && currentTurnCombatant.targetId === char._id) {
+                ctx.strokeStyle = 'rgba(255, 0, 0, 0.9)';
+                ctx.lineWidth = 4;
+                ctx.stroke();
+            }
+        });
+
+        if (currentTurnCombatant && currentTurnCombatant.targetId) {
+            const attackerCombatant = currentCombatState.combatants[currentCombatState.turn];
+            const attacker = mapData.characters.find(c => c._id === attackerCombatant.characterId);
+            const target = findCharacterByCombatantId(currentTurnCombatant.targetId);
+
+            if (attacker && target) {
+                drawArrow(attacker.currentX, attacker.currentY, target.currentX, target.currentY, 'rgba(255, 0, 0, 0.7)');
+            }
+        }
+
+        if (selectedCharacterForMove && hoveredCell) {
+            const char = mapData.characters.find(c => c._id === selectedCharacterForMove);
+            if (char) {
                 const targetX_draw = hoveredCell.x + mapData.gridSize / 2;
                 const targetY_draw = hoveredCell.y + mapData.gridSize / 2;
+
                 ctx.beginPath();
-                ctx.setLineDash([5, 5]);
-                ctx.strokeStyle = 'rgba(255, 0, 0, 0.7)';
+                ctx.setLineDash([5, 10]);
+                ctx.strokeStyle = 'rgba(255, 255, 0, 0.8)';
                 ctx.lineWidth = 2;
-                ctx.moveTo(char.mapX, char.mapY);
+                ctx.moveTo(char.currentX, char.currentY);
                 ctx.lineTo(targetX_draw, targetY_draw);
                 ctx.stroke();
                 ctx.setLineDash([]);
-                const distancePx = Math.sqrt(Math.pow(targetX_draw - char.mapX, 2) + Math.pow(targetY_draw - char.mapY, 2));
+
+                const distancePx = Math.sqrt(Math.pow(targetX_draw - char.currentX, 2) + Math.pow(targetY_draw - char.currentY, 2));
                 const distanceFeet = (distancePx / mapData.gridSize) * 5;
-                ctx.fillStyle = 'red';
+                ctx.fillStyle = 'yellow';
                 ctx.font = 'bold 16px Montserrat';
                 ctx.textAlign = 'center';
-                ctx.textBaseline = 'bottom';
-                const textX = char.mapX + (targetX_draw - char.mapX) / 2;
-                const textY = char.mapY + (targetY_draw - char.mapY) / 2 - 10;
+                const textX = char.currentX + (targetX_draw - char.currentX) / 2;
+                const textY = char.currentY + (targetY_draw - char.currentY) / 2 - 10;
                 ctx.fillText(`${distanceFeet.toFixed(0)} ft`, textX, textY);
             }
-            ctx.fillStyle = 'white';
-            ctx.font = 'bold 12px Montserrat';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(char.name, char.mapX, char.mapY);
-        });
+        }
     }
     
-    function animateMovement(charToAnimate, targetX, targetY) { const moveSpeed = 5; const charX = charToAnimate.mapX; const charY = charToAnimate.mapY; const dx = targetX - charX; const dy = targetY - charY; const distanceToTarget = Math.sqrt(dx * dx + dy * dy); if (distanceToTarget > moveSpeed) { const angle = Math.atan2(dy, dx); charToAnimate.mapX += Math.cos(angle) * moveSpeed; charToAnimate.mapY += Math.sin(angle) * moveSpeed; drawMap(); animationFrameId = requestAnimationFrame(() => animateMovement(charToAnimate, targetX, targetY)); } else { charToAnimate.mapX = targetX; charToAnimate.mapY = targetY; drawMap(); socket.emit('character:move', { _id: charToAnimate._id, name: charToAnimate.name, mapX: charToAnimate.mapX, mapY: charToAnimate.mapY }); } }
-    function loadMapBackground(url) { if (!url) { mapData.backgroundImage = null; mapData.backgroundUrl = ''; drawMap(); saveMapData(); return; } const img = new Image(); img.crossOrigin = "Anonymous"; img.onload = () => { mapData.backgroundImage = img; mapData.backgroundUrl = url; drawMap(); saveMapData(); }; img.onerror = () => { alert('Не удалось загрузить фон.'); mapData.backgroundImage = null; mapData.backgroundUrl = ''; mapBackgroundInput.value = ''; drawMap(); saveMapData(); }; img.src = url; }
-    async function loadMapData() { try { const response = await fetch(`${BACKEND_URL}/api/map`); if (!response.ok) throw new Error('Failed to load map'); const data = await response.json(); mapData.gridSize = data.gridSize; gridSizeInput.value = data.gridSize; if(data.backgroundUrl) { mapBackgroundInput.value = data.backgroundUrl; loadMapBackground(data.backgroundUrl); } } catch (error) { console.error(error); } }
-    async function saveMapData() { try { await fetch(`${BACKEND_URL}/api/map`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ gridSize: mapData.gridSize, backgroundUrl: mapData.backgroundUrl }) }); } catch (error) { console.error('Failed to save map data:', error); } }
+    function lerp(start, end, amt) {
+        if (start === undefined) return end;
+        if (end === undefined) return start;
+        return (1 - amt) * start + amt * end;
+    }
+
+    function drawArrow(fromx, fromy, tox, toy, color) {
+        const headlen = 10;
+        const dx = tox - fromx;
+        const dy = toy - fromy;
+        const angle = Math.atan2(dy, dx);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(fromx, fromy);
+        ctx.lineTo(tox, toy);
+        ctx.lineTo(tox - headlen * Math.cos(angle - Math.PI / 6), toy - headlen * Math.sin(angle - Math.PI / 6));
+        ctx.moveTo(tox, toy);
+        ctx.lineTo(tox - headlen * Math.cos(angle + Math.PI / 6), toy - headlen * Math.sin(angle + Math.PI / 6));
+        ctx.stroke();
+    }
+
+    function findCharacterByCombatantId(combatantId) {
+        if (!currentCombatState) return null;
+        const combatant = currentCombatState.combatants.find(c => c._id.toString() === combatantId);
+        if (!combatant || !combatant.isPlayer) return null;
+        return mapData.characters.find(char => char._id === combatant.characterId);
+    }
     
+    function loadMapBackground(url) {
+        if (!url) { mapData.backgroundImage = null; return; }
+        const img = new Image();
+        img.crossOrigin = "Anonymous";
+        img.onload = () => { mapData.backgroundImage = img; };
+        img.onerror = () => alert('Не удалось загрузить фон.');
+        img.src = url;
+    }
+
+    async function loadMapData() {
+        try {
+            const response = await fetch(`${BACKEND_URL}/api/map`);
+            if (!response.ok) throw new Error('Failed to load map');
+            const data = await response.json();
+            mapData.gridSize = data.gridSize || 50;
+            gridSizeInput.value = mapData.gridSize;
+            if (data.backgroundUrl) {
+                mapBackgroundInput.value = data.backgroundUrl;
+                loadMapBackground(data.backgroundUrl);
+            }
+        } catch (error) { console.error(error); }
+    }
+
+    async function saveMapData() {
+        try {
+            await fetch(`${BACKEND_URL}/api/map`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ gridSize: mapData.gridSize, backgroundUrl: mapBackgroundInput.value.trim() })
+            });
+        } catch (error) { console.error('Failed to save map data:', error); }
+    }
+
+    // --- Логика боя ---
     function renderCombatTracker() {
-        const isGm = userData.username === 'gm';
+        const gmOnlyControls = [startCombatBtn, endCombatBtn, nextTurnBtn, addNpcForm];
+
         if (!currentCombatState || !currentCombatState.isActive) {
-            combatTrackerPanel.style.display = 'none';
-            startCombatBtn.style.display = isGm ? 'inline-block' : 'none';
+            initiativeTracker.innerHTML = '';
+            const existingRollBtn = document.getElementById('rollAllInitiativeBtn');
+            if(existingRollBtn) existingRollBtn.remove();
+            
+            if (isGm) {
+                startCombatBtn.classList.remove('hidden');
+                endCombatBtn.classList.add('hidden');
+                nextTurnBtn.classList.add('hidden');
+                addNpcForm.classList.add('hidden');
+            } else {
+                gmOnlyControls.forEach(el => el.classList.add('hidden'));
+            }
             return;
         }
-        combatTrackerPanel.style.display = 'block';
-        startCombatBtn.style.display = 'none';
-        const combatControls = combatTrackerPanel.querySelector('.combat-controls');
-        if (combatControls) { combatControls.style.display = isGm ? 'block' : 'none'; }
-        
+
+        startCombatBtn.classList.add('hidden');
+        if (isGm) {
+            endCombatBtn.classList.remove('hidden');
+            nextTurnBtn.classList.remove('hidden');
+            addNpcForm.classList.remove('hidden');
+
+            if (!document.getElementById('rollAllInitiativeBtn')) {
+                const rollAllBtn = document.createElement('button');
+                rollAllBtn.id = 'rollAllInitiativeBtn';
+                rollAllBtn.textContent = 'Init Всем';
+                rollAllBtn.addEventListener('click', async () => {
+                    try {
+                        const response = await fetch(`${BACKEND_URL}/api/combat/roll-initiative`, {
+                            method: 'PUT',
+                            headers: { 'Authorization': `Bearer ${userData.token}` }
+                        });
+                        if (!response.ok) {
+                           console.error('Failed to roll initiative for all');
+                        }
+                    } catch (error) {
+                        console.error('Error rolling initiative:', error);
+                    }
+                });
+                combatControls.insertBefore(rollAllBtn, nextTurnBtn);
+            }
+        }
+
         initiativeTracker.innerHTML = '';
         currentCombatState.combatants.forEach((c, index) => {
             const li = document.createElement('li');
-            if (index === currentCombatState.turn) { li.classList.add('current-turn'); }
-            if (isGm) {
-                const removeBtn = document.createElement('button');
-                removeBtn.className = 'remove-combatant-btn';
-                removeBtn.innerHTML = '&times;';
-                removeBtn.onclick = () => { socket.emit('combat:remove_combatant', c._id.toString()); };
-                li.appendChild(removeBtn);
+            if (index === currentCombatState.turn) {
+                li.classList.add('current-turn');
             }
+
             const nameSpan = document.createElement('span');
             nameSpan.className = 'combatant-name';
-            if (c.targetName) {
-                nameSpan.innerHTML = `${c.name} <span class="target-arrow">→</span> ${c.targetName}`;
-            } else {
-                nameSpan.textContent = c.name;
-            }
+            nameSpan.textContent = c.name;
             li.appendChild(nameSpan);
 
-            if (isGm && c.initiative === null) {
+            const initiativeContainer = document.createElement('div');
+            initiativeContainer.className = 'initiative-container';
+            if (c.initiative === null) {
                 const input = document.createElement('input');
                 input.type = 'number';
                 input.className = 'initiative-input';
-                input.placeholder = '??';
+                input.placeholder = '...';
                 input.dataset.id = c._id;
+                input.disabled = !isGm && c.characterId !== activeCharacterId;
                 input.addEventListener('keydown', (e) => {
                     if (e.key === 'Enter') {
                         const initiative = parseInt(e.target.value, 10);
-                        if (!isNaN(initiative)) { socket.emit('combat:set_initiative', { combatantId: c._id.toString(), initiative }); }
+                        if (!isNaN(initiative)) {
+                            socket.emit('combat:set_initiative', { combatantId: c._id, initiative });
+                        }
                     }
                 });
-                li.appendChild(input);
+                initiativeContainer.appendChild(input);
             } else {
                 const valueSpan = document.createElement('span');
                 valueSpan.className = 'initiative-value';
-                valueSpan.textContent = c.initiative !== null ? c.initiative : '??';
-                li.appendChild(valueSpan);
+                valueSpan.textContent = c.initiative;
+                initiativeContainer.appendChild(valueSpan);
             }
+            li.appendChild(initiativeContainer);
+
+            const removeBtnContainer = document.createElement('div');
+            if (!c.isPlayer && isGm) {
+                const removeBtn = document.createElement('button');
+                removeBtn.className = 'remove-combatant-btn';
+                removeBtn.innerHTML = '&times;';
+                removeBtn.dataset.id = c._id;
+                removeBtn.addEventListener('click', () => {
+                    socket.emit('combat:remove_combatant', c._id);
+                });
+                removeBtnContainer.appendChild(removeBtn);
+            }
+            li.appendChild(removeBtnContainer);
             initiativeTracker.appendChild(li);
         });
     }
 
-    async function rollInitiativeForAll() {
-        if (userData.username !== 'gm' || !userData.token) return;
-        try {
-            const response = await fetch(`${BACKEND_URL}/api/combat/roll-initiative`, {
-                method: 'PUT',
-                headers: { 'Authorization': `Bearer ${userData.token}` }
-            });
-            if (!response.ok) {
-                 const errorData = await response.json();
-                 alert(`Ошибка броска инициативы: ${errorData.message}`);
-            }
-        } catch (error) {
-            console.error('Сетевая ошибка при броске инициативы:', error);
-            alert('Сетевая ошибка при броске инициативы.');
-        }
-    }
-    
-    async function fetchAndDisplayOtherCharacter(charId) { /* ... без изменений ... */ }
-    function showOtherCharacterSheet(characterData) { /* ... без изменений ... */ }
 
+    // --- Обработчики событий ---
     function setupMainEventListeners() {
+        window.addEventListener('resize', resizeCanvas);
+
         loadCharacterBtn.addEventListener('click', () => loadCharacter(characterSelector.value));
         newCharacterBtn.addEventListener('click', createNewCharacter);
         deleteCharacterBtn.addEventListener('click', deleteCharacter);
-        eventLogSendBtn.addEventListener('click', sendLogMessage);
-        eventLogInput.addEventListener('keydown', (event) => { if (event.key === 'Enter') { sendLogMessage(); } });
-        loadMapBackgroundBtn.addEventListener('click', () => loadMapBackground(mapBackgroundInput.value.trim()));
-        gridSizeInput.addEventListener('change', () => { mapData.gridSize = parseInt(gridSizeInput.value) || 50; drawMap(); saveMapData(); });
-        
+
+        eventLogInput.addEventListener('keydown', (e) => { 
+            if (e.key === 'Enter') {
+                sendLogMessage(eventLogInput.value);
+                eventLogInput.value = '';
+            }
+        });
+        eventLogSendBtn.addEventListener('click', () => {
+            sendLogMessage(eventLogInput.value);
+            eventLogInput.value = '';
+        });
+
+        loadMapBackgroundBtn.addEventListener('click', () => {
+            const url = mapBackgroundInput.value.trim();
+            loadMapBackground(url);
+            saveMapData();
+        });
+        gridSizeInput.addEventListener('change', () => {
+            mapData.gridSize = parseInt(gridSizeInput.value) || 50;
+            saveMapData();
+        });
+
         startCombatBtn.addEventListener('click', () => socket.emit('combat:start'));
         endCombatBtn.addEventListener('click', () => socket.emit('combat:end'));
         nextTurnBtn.addEventListener('click', () => socket.emit('combat:next_turn'));
-        rollInitiativeBtn.addEventListener('click', rollInitiativeForAll);
-        addNpcBtn.addEventListener('click', () => { const name = npcNameInput.value.trim(); const initiative = parseInt(npcInitiativeInput.value, 10); if (name) { socket.emit('combat:add_npc', { name, initiative: isNaN(initiative) ? null : initiative }); npcNameInput.value = ''; npcInitiativeInput.value = ''; } });
-        
-        document.querySelectorAll('#app input, #app select, #app textarea').forEach(element => {
-            if (element.id.includes('Score') || element.id.includes('Proficient') || element.id === 'proficiencyBonus') {
-                element.addEventListener('input', updateDerivedValues);
-                element.addEventListener('change', saveCharacterData);
-            } else { element.addEventListener('change', saveCharacterData); }
+        addNpcBtn.addEventListener('click', () => {
+            const name = npcNameInput.value.trim();
+            const initiative = parseInt(npcInitiativeInput.value, 10);
+            if (name) {
+                socket.emit('combat:add_npc', { name, initiative: isNaN(initiative) ? null : initiative });
+                npcNameInput.value = '';
+                npcInitiativeInput.value = '';
+            }
         });
 
-        equipmentListDiv.addEventListener('change', (event) => { if (event.target.matches('input, textarea')) { const idx = parseInt(event.target.dataset.index); const field = event.target.dataset.field; currentCharacterData.equipment[idx][field] = field === 'quantity' ? parseInt(event.target.value) : event.target.value; saveCharacterData(); } });
-        spellsListDiv.addEventListener('change', (event) => { if (event.target.matches('input, textarea, select')) { const idx = parseInt(event.target.dataset.index); const field = event.target.dataset.field; currentCharacterData.spells[idx][field] = event.target.value; saveCharacterData(); } });
-        addEquipmentBtn.addEventListener('click', () => { if (!currentCharacterData.equipment) currentCharacterData.equipment = []; currentCharacterData.equipment.push({ name: '', quantity: 1, description: '' }); renderEquipment(); saveCharacterData(); });
-        addSpellBtn.addEventListener('click', () => { if (!currentCharacterData.spells) currentCharacterData.spells = []; currentCharacterData.spells.push({ name: '', level: 'Заговор', description: '' }); renderSpells(); saveCharacterData(); });
-        
-        battleMapCanvas.addEventListener('mousemove', (e) => { const rect = battleMapCanvas.getBoundingClientRect(); const mouseX = e.clientX - rect.left; const mouseY = e.clientY - rect.top; const cellX = Math.floor(mouseX / mapData.gridSize) * mapData.gridSize; const cellY = Math.floor(mouseY / mapData.gridSize) * mapData.gridSize; if (!hoveredCell || hoveredCell.x !== cellX || hoveredCell.y !== cellY) { hoveredCell = { x: cellX, y: cellY }; drawMap(); } });
-        battleMapCanvas.addEventListener('mouseleave', () => { hoveredCell = null; drawMap(); });
+        battleMapCanvas.addEventListener('mousemove', (e) => {
+            const rect = battleMapCanvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            const cellX = Math.floor(mouseX / mapData.gridSize) * mapData.gridSize;
+            const cellY = Math.floor(mouseY / mapData.gridSize) * mapData.gridSize;
+            if (!hoveredCell || hoveredCell.x !== cellX || hoveredCell.y !== cellY) {
+                hoveredCell = { x: cellX, y: cellY };
+            }
+        });
+        battleMapCanvas.addEventListener('mouseleave', () => {
+            hoveredCell = null;
+        });
 
         battleMapCanvas.addEventListener('click', (e) => {
             const rect = battleMapCanvas.getBoundingClientRect();
             const clickX = e.clientX - rect.left;
             const clickY = e.clientY - rect.top;
         
-            const clickedChar = mapData.characters.find(char => {
-                const distance = Math.sqrt(Math.pow(clickX - char.mapX, 2) + Math.pow(clickY - char.mapY, 2));
-                return distance <= mapData.gridSize / 3;
-            });
+            const clickedCharToken = findClickedCharacter(clickX, clickY);
         
-            const isCombatActive = currentCombatState?.isActive;
-            const currentCombatant = isCombatActive ? currentCombatState.combatants[currentCombatState.turn] : null;
-            const isMyTurn = currentCombatant?.characterId === activeCharacterId;
+            if (currentCombatState && currentCombatState.isActive) {
+                const currentTurnCombatant = currentCombatState.combatants[currentCombatState.turn];
+                if (!currentTurnCombatant) return;
         
-            if (clickedChar) {
-                if (isCombatActive && isMyTurn) {
-                    if (clickedChar._id === activeCharacterId) {
-                        selectedCharacterForMove = selectedCharacterForMove === clickedChar._id ? null : clickedChar._id;
-                        drawMap();
-                    } 
-                    else {
-                        const targetCombatant = currentCombatState.combatants.find(c => c.characterId === clickedChar._id);
-                        if (targetCombatant) {
-                            socket.emit('combat:set_target', { targetId: targetCombatant._id.toString() });
-                        }
-                    }
-                } 
-                else {
-                    if (clickedChar._id === activeCharacterId) {
-                        selectedCharacterForMove = selectedCharacterForMove === clickedChar._id ? null : clickedChar._id;
-                        drawMap();
-                    } 
-                    else {
-                        fetchAndDisplayOtherCharacter(clickedChar._id);
+                const isMyTurn = currentTurnCombatant.characterId === activeCharacterId;
+        
+                if (clickedCharToken && (isGm || isMyTurn)) {
+                    const clickedCombatant = findCombatantByCharacterId(clickedCharToken._id);
+                    if (clickedCombatant && currentTurnCombatant._id.toString() !== clickedCombatant._id.toString()) {
+                        socket.emit('combat:set_target', { 
+                            targetId: clickedCombatant._id.toString() 
+                        });
+                        selectedCharacterForMove = null;
+                        return;
                     }
                 }
-            } 
-            else if (selectedCharacterForMove) {
+            }
+        
+            if (clickedCharToken && clickedCharToken._id === activeCharacterId) {
+                selectedCharacterForMove = selectedCharacterForMove === clickedCharToken._id ? null : clickedCharToken._id;
+            } else if (selectedCharacterForMove && hoveredCell) {
                 const charToMove = mapData.characters.find(c => c._id === selectedCharacterForMove);
                 if (charToMove) {
-                    if (animationFrameId) cancelAnimationFrame(animationFrameId);
                     const targetX = hoveredCell.x + mapData.gridSize / 2;
                     const targetY = hoveredCell.y + mapData.gridSize / 2;
-                    animateMovement(charToMove, targetX, targetY);
+                    socket.emit('character:move', { _id: charToMove._id, name: charToMove.name, mapX: targetX, mapY: targetY });
                 }
                 selectedCharacterForMove = null;
             }
         });
+        
+        function findClickedCharacter(x, y) {
+            return mapData.characters.find(char => {
+                const distance = Math.sqrt(Math.pow(x - char.currentX, 2) + Math.pow(y - char.currentY, 2));
+                return distance <= mapData.gridSize / 2.5;
+            });
+        }
+        
+        function findCombatantByCharacterId(charId) {
+            if (!currentCombatState || !currentCombatState.isActive) return null;
+            return currentCombatState.combatants.find(c => c.characterId === charId);
+        }
 
-        otherCharacterSheetCloseBtn.addEventListener('click', () => { otherCharacterSheetModal.classList.add('hidden'); });
-        otherCharacterSheetModal.addEventListener('click', (e) => { if (e.target === otherCharacterSheetModal) { otherCharacterSheetModal.classList.add('hidden'); } });
+        openSheetBtn.addEventListener('click', () => {
+            if (!activeCharacterId) {
+                alert('Сначала загрузите персонажа!');
+                return;
+            }
+            sheetContainer.innerHTML = getCharacterSheetHTML();
+            sheetModal.classList.remove('hidden');
+        });
+
+        closeSheetBtn.addEventListener('click', () => {
+            sheetModal.classList.add('hidden');
+        });
+        sheetModal.addEventListener('click', (e) => {
+            if (e.target === sheetModal) {
+                sheetModal.classList.add('hidden');
+            }
+        });
+    }
+    
+    // --- Динамическое создание панели кубиков ---
+    function createDiceRoller() {
+        const rightSidebar = document.querySelector('.right-sidebar');
+        if (!document.getElementById('dice-roller-panel')) {
+            const dicePanel = document.createElement('div');
+            dicePanel.id = 'dice-roller-panel';
+            dicePanel.className = 'sidebar-panel';
+            
+            dicePanel.innerHTML = `
+                <h3>Бросок кубиков</h3>
+                <div id="dice-result-display">-</div>
+                <div id="dice-buttons">
+                    <button data-dice="d4">d4</button>
+                    <button data-dice="d6">d6</button>
+                    <button data-dice="d8">d8</button>
+                    <button data-dice="d10">d10</button>
+                    <button data-dice="d12">d12</button>
+                    <button data-dice="d20">d20</button>
+                    <button data-dice="d100">d100</button>
+                </div>
+                <div id="dice-actions">
+                    <button id="roll-dice-btn">Бросить</button>
+                    <input type="number" id="manual-roll-input" placeholder="Вручную">
+                </div>
+            `;
+            rightSidebar.appendChild(dicePanel);
+            
+            const diceButtons = dicePanel.querySelector('#dice-buttons');
+            const rollBtn = dicePanel.querySelector('#roll-dice-btn');
+            const manualInput = dicePanel.querySelector('#manual-roll-input');
+            const resultDisplay = dicePanel.querySelector('#dice-result-display');
+            let selectedDice = null;
+
+            diceButtons.addEventListener('click', (e) => {
+                if(e.target.tagName === 'BUTTON') {
+                    const currentActive = diceButtons.querySelector('.active');
+                    if(currentActive) currentActive.classList.remove('active');
+                    e.target.classList.add('active');
+                    selectedDice = e.target.dataset.dice;
+                }
+            });
+
+            rollBtn.addEventListener('click', () => {
+                if (selectedDice) {
+                    const rollCommand = `/roll 1${selectedDice}`;
+                    sendLogMessage(rollCommand);
+                } else {
+                    alert('Сначала выберите кубик!');
+                }
+            });
+            
+            manualInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    const value = manualInput.value;
+                    if(value) {
+                       sendLogMessage(`вручную вводит результат: ${value}`);
+                       manualInput.value = '';
+                    }
+                }
+            });
+        }
     }
 
+    // --- Запуск ---
     setupAuthEventListeners();
     checkAuthState();
 });
