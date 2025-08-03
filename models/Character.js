@@ -7,9 +7,20 @@ const EquipmentSchema = new mongoose.Schema({
     description: { type: String, default: '' }
 }, { _id: false });
 
+// НОВЫЕ СХЕМЫ ДЛЯ АТАК И ЗАКЛИНАНИЙ
+const AttackSchema = new mongoose.Schema({
+    name: { type: String, required: true },
+    bonus: { type: String, default: '+0' },
+    damage: { type: String, required: true },
+    damageType: { type: String, default: '' }
+}, { _id: false });
+
 const SpellSchema = new mongoose.Schema({
-    name: { type: String, default: '' },
+    name: { type: String, required: true },
     level: { type: String, default: 'Заговор' },
+    attackBonus: { type: String, default: '+0' },
+    damage: { type: String, default: '' },
+    damageType: { type: String, default: '' },
     description: { type: String, default: '' }
 }, { _id: false });
 
@@ -87,6 +98,10 @@ const CharacterSchema = new mongoose.Schema({
     // --- Снаряжение (пока как одно текстовое поле для простоты) ---
     equipment: { type: String, default: 'Боевой посох\nКнига заклинаний\nНабор учёного\nФокусирующая призма' },
     
+    // НОВЫЕ ПОЛЯ ДЛЯ АТАК И ЗАКЛИНАНИЙ
+    attacks: [AttackSchema],
+    spells: [SpellSchema],
+
     // --- Позиция на карте ---
     mapX: { type: Number, default: 400 },
     mapY: { type: Number, default: 300 }

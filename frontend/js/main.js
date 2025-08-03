@@ -41,7 +41,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const sheetModal = document.getElementById('sheet-modal');
     const closeSheetBtn = document.getElementById('close-sheet-btn');
     const sheetContainer = document.getElementById('character-sheet-container');
-
+    
+    // НОВЫЕ DOM ЭЛЕМЕНТЫ
+    const attacksForCombat = document.getElementById('attacks-for-combat');
+    const spellsForCombat = document.getElementById('spells-for-combat');
+    const equipmentForCombat = document.getElementById('equipment-for-combat');
 
     // --- Состояние приложения ---
     let userData = { token: null, userId: null, username: null };
@@ -54,6 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let hoveredCell = null;
     let animationFrameId = null;
     let sheetUpdateTimeout = null;
+    let selectedCombatAction = null; // Новое поле для хранения выбранной атаки/заклинания
 
     // --- СПИСКИ ДАННЫХ ДЛЯ ГЕНЕРАЦИИ ЛИСТА ---
     const ABILITIES = {
@@ -86,20 +91,19 @@ document.addEventListener('DOMContentLoaded', () => {
         survival: { label: 'Выживание', ability: 'wisdom' }
     };
 
-
     // --- ГЕНЕРАЦИЯ HTML ЛИСТА ПЕРСОНАЖА ---
-    function getCharacterSheetHTML() {
+    function getCharacterSheetHTML(readonly = false) {
         const abilitiesHTML = Object.entries(ABILITIES).map(([key, label]) => `
             <div class="ability-score">
                 <span class="label">${label}</span>
                 <input type="text" data-field="${key}Modifier" class="modifier-input" readonly>
-                <input type="number" data-field="${key}" class="score-input char-sheet-input">
+                <input type="number" data-field="${key}" class="score-input char-sheet-input" ${readonly ? 'readonly' : ''}>
             </div>
         `).join('');
 
         const savingThrowsHTML = Object.entries(ABILITIES).map(([key, label]) => `
              <li class="skill-item">
-                <input type="checkbox" data-field="${key}SaveProficient" class="char-sheet-input proficient-checkbox">
+                <input type="checkbox" data-field="${key}SaveProficient" class="char-sheet-input proficient-checkbox" ${readonly ? 'disabled' : ''}>
                 <span class="skill-bonus" data-field="${key}Save" readonly>+0</span>
                 <span class="skill-label">${label}</span>
             </li>
@@ -107,7 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const skillsHTML = Object.entries(SKILLS).map(([key, {label, ability}]) => `
             <li class="skill-item">
-                <input type="checkbox" data-field="${key}Proficient" class="char-sheet-input proficient-checkbox">
+                <input type="checkbox" data-field="${key}Proficient" class="char-sheet-input proficient-checkbox" ${readonly ? 'disabled' : ''}>
                 <span class="skill-bonus" data-field="${key}" readonly>+0</span>
                 <span class="skill-label">${label} <span class="skill-ability">(${ABILITIES[ability].slice(0,3)})</span></span>
             </li>
@@ -117,15 +121,15 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="character-sheet">
             <header class="sheet-header">
                 <div class="header-section char-name-section">
-                    <input type="text" data-field="name" class="char-sheet-input" id="characterName" placeholder="Имя персонажа">
+                    <input type="text" data-field="name" class="char-sheet-input" id="characterName" placeholder="Имя персонажа" ${readonly ? 'readonly' : ''}>
                 </div>
                  <div class="header-info-grid">
-                    <div class="header-section"><span class="label">КЛАСС И УРОВЕНЬ</span><input type="text" data-field="classLevel" class="char-sheet-input"></div>
-                    <div class="header-section"><span class="label">ПРЕДЫСТОРИЯ</span><input type="text" data-field="background" class="char-sheet-input"></div>
+                    <div class="header-section"><span class="label">КЛАСС И УРОВЕНЬ</span><input type="text" data-field="classLevel" class="char-sheet-input" ${readonly ? 'readonly' : ''}></div>
+                    <div class="header-section"><span class="label">ПРЕДЫСТОРИЯ</span><input type="text" data-field="background" class="char-sheet-input" ${readonly ? 'readonly' : ''}></div>
                     <div class="header-section"><span class="label">ИМЯ ИГРОКА</span><input type="text" data-field="playerName" class="char-sheet-input" readonly></div>
-                    <div class="header-section"><span class="label">РАСА</span><input type="text" data-field="race" class="char-sheet-input"></div>
-                    <div class="header-section"><span class="label">МИРОВОЗЗРЕНИЕ</span><input type="text" data-field="alignment" class="char-sheet-input"></div>
-                    <div class="header-section"><span class="label">ОПЫТ</span><input type="number" data-field="experience" class="char-sheet-input"></div>
+                    <div class="header-section"><span class="label">РАСА</span><input type="text" data-field="race" class="char-sheet-input" ${readonly ? 'readonly' : ''}></div>
+                    <div class="header-section"><span class="label">МИРОВОЗЗРЕНИЕ</span><input type="text" data-field="alignment" class="char-sheet-input" ${readonly ? 'readonly' : ''}></div>
+                    <div class="header-section"><span class="label">ОПЫТ</span><input type="number" data-field="experience" class="char-sheet-input" ${readonly ? 'readonly' : ''}></div>
                 </div>
             </header>
 
@@ -134,7 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="abilities-section">${abilitiesHTML}</div>
                     <div class="sub-column">
                         <div class="proficiency-bonus-section">
-                            <input type="number" data-field="proficiencyBonus" class="char-sheet-input">
+                            <input type="number" data-field="proficiencyBonus" class="char-sheet-input" ${readonly ? 'readonly' : ''}>
                             <span class="label">БОНУС МАСТЕРСТВА</span>
                         </div>
                         <div class="saving-throws-section">
@@ -149,28 +153,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <div class="main-column-center">
                     <div class="combat-stats-section">
-                         <div class="combat-stat"><span class="label">КЛАСС БРОНИ</span><input type="number" data-field="ac" class="char-sheet-input"></div>
+                         <div class="combat-stat"><span class="label">КЛАСС БРОНИ</span><input type="number" data-field="ac" class="char-sheet-input" ${readonly ? 'readonly' : ''}></div>
                          <div class="combat-stat"><span class="label">ИНИЦИАТИВА</span><input type="text" data-field="initiative" class="char-sheet-input" readonly></div>
-                         <div class="combat-stat"><span class="label">СКОРОСТЬ</span><input type="text" data-field="speed" class="char-sheet-input"></div>
+                         <div class="combat-stat"><span class="label">СКОРОСТЬ</span><input type="text" data-field="speed" class="char-sheet-input" ${readonly ? 'readonly' : ''}></div>
                     </div>
                      <div class="hp-section">
-                        <div class="hp-max"><span class="label">Максимум хитов</span><input type="number" data-field="maxHp" class="char-sheet-input"></div>
-                        <div class="hp-current"><span class="label">ТЕКУЩИЕ ХИТЫ</span><input type="number" data-field="currentHp" class="char-sheet-input"></div>
-                        <div class="hp-temp"><span class="label">Временные хиты</span><input type="number" data-field="tempHp" class="char-sheet-input"></div>
+                        <div class="hp-max"><span class="label">Максимум хитов</span><input type="number" data-field="maxHp" class="char-sheet-input" ${readonly ? 'readonly' : ''}></div>
+                        <div class="hp-current"><span class="label">ТЕКУЩИЕ ХИТЫ</span><input type="number" data-field="currentHp" class="char-sheet-input" ${readonly ? 'readonly' : ''}></div>
+                        <div class="hp-temp"><span class="label">Временные хиты</span><input type="number" data-field="tempHp" class="char-sheet-input" ${readonly ? 'readonly' : ''}></div>
                     </div>
                     <div class="attacks-section">
-                        <h3>АТАКИ И ЗАКЛИНАНИЯ</h3>
-                        <textarea data-field="attacks" class="char-sheet-input"></textarea>
+                        <h3>АТАКИ, ЗАКЛИНАНИЯ И ЗАГОВОРЫ</h3>
+                        <div id="attacks-list"></div>
+                        <button class="add-attack-btn" data-type="attack" ${readonly ? 'disabled' : ''}>Добавить атаку</button>
+                        <div id="spells-list"></div>
+                        <button class="add-spell-btn" data-type="spell" ${readonly ? 'disabled' : ''}>Добавить заклинание</button>
                     </div>
                 </div>
                 <div class="main-column-right">
                     <div class="features-section">
                         <h3>УМЕНИЯ И ОСОБЕННОСТИ</h3>
-                        <textarea data-field="features" class="char-sheet-input"></textarea>
+                        <textarea data-field="features" class="char-sheet-input" ${readonly ? 'readonly' : ''}></textarea>
                     </div>
                     <div class="equipment-section">
                          <h3>СНАРЯЖЕНИЕ</h3>
-                        <textarea data-field="equipment" class="char-sheet-input"></textarea>
+                        <textarea data-field="equipment" class="char-sheet-input" ${readonly ? 'readonly' : ''}></textarea>
                     </div>
                 </div>
             </main>
@@ -271,8 +278,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const localChar = mapData.characters.find(c => c._id === serverChar._id);
                 if (!localChar) {
                     serverChar.spawnTime = performance.now();
-                    serverChar.currentX = serverChar.mapX;
-                    serverChar.currentY = serverChar.mapY;
+                    serverChar.currentX = serverChar.mapX || 100;
+                    serverChar.currentY = serverChar.mapY || 100;
                 } else {
                     serverChar.spawnTime = localChar.spawnTime;
                     serverChar.currentX = localChar.currentX;
@@ -280,6 +287,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
             mapData.characters = allCharacters;
+            console.log('Map updated with characters:', mapData.characters);
         });
         socket.on('log:new_message', (messageData) => {
             const messageElement = document.createElement('p');
@@ -292,6 +300,11 @@ document.addEventListener('DOMContentLoaded', () => {
             currentCombatState = newState;
             renderCombatTracker();
         });
+        socket.on('character:view', (charData) => {
+            sheetContainer.innerHTML = getCharacterSheetHTML(true);
+            populateSheet(charData);
+            sheetModal.classList.remove('hidden');
+        });
     }
 
     // --- ЛОГИКА ПРИЛОЖЕНИЯ ---
@@ -301,6 +314,7 @@ document.addEventListener('DOMContentLoaded', () => {
             characterManagerPanel.classList.add('hidden');
         } else {
             characterManagerPanel.classList.remove('hidden');
+            createViewOthersButton();
         }
         createDiceRoller();
         resizeCanvas();
@@ -339,7 +353,24 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!response.ok) throw new Error('Character not found');
             currentCharacterData = await response.json();
             activeCharacterId = id;
+            // Устанавливаем начальные координаты, если они отсутствуют
+            if (!currentCharacterData.mapX || !currentCharacterData.mapY) {
+                currentCharacterData.mapX = 100;
+                currentCharacterData.mapY = 100;
+                await fetch(`${BACKEND_URL}/api/characters/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${userData.token}`
+                    },
+                    body: JSON.stringify({ mapX: 100, mapY: 100 })
+                });
+            }
             socket.emit('character:join', currentCharacterData);
+            console.log('Character loaded:', currentCharacterData);
+            // НОВЫЕ ВЫЗОВЫ ФУНКЦИЙ
+            renderCombatActionsAndEquipment();
+            renderEquipment();
         } catch (error) { console.error("Failed to load character:", error); }
     }
 
@@ -367,10 +398,67 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    async function viewOtherCharacters() {
+        try {
+            const response = await fetch(`${BACKEND_URL}/api/characters/all`, { headers: { 'Authorization': `Bearer ${userData.token}` } });
+            if (!response.ok) throw new Error('Failed to fetch all characters');
+            const characters = await response.json();
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay';
+            modal.innerHTML = `
+                <div class="sheet-modal-content">
+                    <button class="close-btn" id="close-others-modal">&times;</button>
+                    <h2>Персонажи</h2>
+                    <select id="otherCharacterSelector">
+                        <option disabled selected>-- Выберите персонажа --</option>
+                        ${characters.map(char => `<option value="${char._id}">${char.name}</option>`).join('')}
+                    </select>
+                    <button id="viewOtherCharacterBtn">Просмотреть</button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            const closeBtn = modal.querySelector('#close-others-modal');
+            const viewBtn = modal.querySelector('#viewOtherCharacterBtn');
+            const selector = modal.querySelector('#otherCharacterSelector');
+
+            closeBtn.addEventListener('click', () => modal.remove());
+            modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+            viewBtn.addEventListener('click', async () => {
+                const charId = selector.value;
+                if (charId) {
+                    try {
+                        const response = await fetch(`${BACKEND_URL}/api/characters/public/${charId}`, { headers: { 'Authorization': `Bearer ${userData.token}` } });
+                        if (!response.ok) throw new Error('Character not found');
+                        const charData = await response.json();
+                        socket.emit('character:view', charData);
+                        modal.remove();
+                    } catch (error) { console.error("Failed to view character:", error); }
+                }
+            });
+        } catch (error) { console.error("Failed to load other characters:", error); }
+    }
+
+    function createViewOthersButton() {
+        const charButtons = characterManagerPanel.querySelector('.char-buttons');
+        const viewOthersBtn = document.createElement('button');
+        viewOthersBtn.id = 'viewOthersBtn';
+        viewOthersBtn.textContent = 'Просмотреть других';
+        viewOthersBtn.addEventListener('click', viewOtherCharacters);
+        charButtons.appendChild(viewOthersBtn);
+    }
+
     function sendLogMessage(text) {
         if (text && text.trim() !== '') {
-            const messageData = { text: text, charName: isGm ? 'Мастер' : (currentCharacterData.name || 'Игрок') };
-            socket.emit('log:send', messageData);
+            const messageData = { charName: isGm ? 'Мастер' : (currentCharacterData.name || 'Игрок') };
+            const rollMatch = text.match(/^\/(r|roll)\s+(.*)/);
+            if (rollMatch) {
+                const notation = rollMatch[2];
+                messageData.text = `бросает ${notation}`;
+                socket.emit('log:send', messageData);
+            } else {
+                messageData.text = text;
+                socket.emit('log:send', messageData);
+            }
         }
     }
 
@@ -409,8 +497,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         mapData.characters.forEach(char => {
             const lerpSpeed = 0.1;
-            char.currentX = lerp(char.currentX, char.mapX, lerpSpeed);
-            char.currentY = lerp(char.currentY, char.mapY, lerpSpeed);
+            char.currentX = lerp(char.currentX, char.mapX || 100, lerpSpeed);
+            char.currentY = lerp(char.currentY, char.mapY || 100, lerpSpeed);
 
             const isSelf = char._id === activeCharacterId;
             const isSelectedForMove = char._id === selectedCharacterForMove;
@@ -505,8 +593,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!currentCombatState) return null;
         const combatant = currentCombatState.combatants.find(c => c._id.toString() === combatantId);
         if (!combatant) return null;
-        // Возвращаем сам комбатант если это NPC, или соответствующего персонажа, если игрок
         return combatant.isPlayer ? mapData.characters.find(char => char._id === combatant.characterId) : combatant;
+    }
+    
+    function findCombatantByCharacterId(charId) {
+        if (!currentCombatState || !currentCombatState.isActive) return null;
+        return currentCombatState.combatants.find(c => c.characterId === charId);
     }
     
     function loadMapBackground(url) {
@@ -643,7 +735,52 @@ document.addEventListener('DOMContentLoaded', () => {
             initiativeTracker.appendChild(li);
         });
     }
+    
+    // НОВЫЕ ФУНКЦИИ ДЛЯ БОЕВЫХ ДЕЙСТВИЙ
+    function renderCombatActionsAndEquipment() {
+        if (!currentCharacterData || !currentCharacterData.attacks || !currentCharacterData.spells) {
+            attacksForCombat.innerHTML = '<p>Загрузите персонажа</p>';
+            spellsForCombat.innerHTML = '';
+            return;
+        }
 
+        // Атаки
+        attacksForCombat.innerHTML = `<h4>Атаки</h4>`;
+        currentCharacterData.attacks.forEach(attack => {
+            const btn = document.createElement('button');
+            btn.className = 'combat-action-btn';
+            btn.dataset.type = 'attack';
+            btn.dataset.name = attack.name;
+            btn.dataset.bonus = attack.bonus;
+            btn.dataset.damage = attack.damage;
+            btn.dataset.damageType = attack.damageType;
+            btn.textContent = `${attack.name} (${attack.bonus}, ${attack.damage})`;
+            attacksForCombat.appendChild(btn);
+        });
+        
+        // Заклинания
+        spellsForCombat.innerHTML = `<h4>Заклинания</h4>`;
+        currentCharacterData.spells.forEach(spell => {
+            const btn = document.createElement('button');
+            btn.className = 'combat-action-btn';
+            btn.dataset.type = 'spell';
+            btn.dataset.name = spell.name;
+            btn.dataset.bonus = spell.attackBonus;
+            btn.dataset.damage = spell.damage;
+            btn.dataset.damageType = spell.damageType;
+            btn.dataset.description = spell.description;
+            btn.textContent = `${spell.name} (${spell.level})`;
+            spellsForCombat.appendChild(btn);
+        });
+    }
+    
+    function renderEquipment() {
+        if (!currentCharacterData || !currentCharacterData.equipment) {
+            equipmentForCombat.innerHTML = '<p>Загрузите персонажа</p>';
+            return;
+        }
+        equipmentForCombat.innerHTML = `<textarea readonly>${currentCharacterData.equipment}</textarea>`;
+    }
 
     // --- Обработчики событий ---
     function setupMainEventListeners() {
@@ -705,45 +842,68 @@ document.addEventListener('DOMContentLoaded', () => {
             const rect = battleMapCanvas.getBoundingClientRect();
             const clickX = e.clientX - rect.left;
             const clickY = e.clientY - rect.top;
-        
+            console.log(`Map clicked at: x=${clickX}, y=${clickY}`);
+
             const clickedCharToken = findClickedCharacter(clickX, clickY);
-        
-            if (currentCombatState && currentCombatState.isActive) {
-                const currentTurnCombatant = currentCombatState.combatants[currentCombatState.turn];
-                if (!currentTurnCombatant) return;
-        
-                const isMyTurn = currentTurnCombatant.characterId === activeCharacterId;
-        
-                if (clickedCharToken && (isGm || isMyTurn)) {
-                    const clickedCombatant = findCombatantByCharacterId(clickedCharToken._id);
-                    // Убедимся, что комбатант найден и это не тот, кто сейчас ходит
-                    if (clickedCombatant && currentTurnCombatant._id.toString() !== clickedCombatant._id.toString()) {
-                        socket.emit('combat:set_target', { 
-                            targetId: clickedCombatant._id.toString() 
-                        });
-                        selectedCharacterForMove = null;
-                        return;
-                    }
-                }
+            console.log('Clicked character:', clickedCharToken);
+            
+            const currentTurnCombatant = currentCombatState && currentCombatState.isActive ? currentCombatState.combatants[currentCombatState.turn] : null;
+            const isMyTurn = currentTurnCombatant && currentTurnCombatant.characterId === activeCharacterId;
+
+            // Если выбрано действие, пытаемся применить его
+            if (selectedCombatAction && clickedCharToken && (isGm || isMyTurn)) {
+                handleCombatAction(selectedCombatAction, clickedCharToken);
+                selectedCombatAction = null;
+                document.querySelectorAll('.combat-action-btn.active').forEach(b => b.classList.remove('active'));
+                return;
             }
-        
+
+            // Выбор токена для перемещения
             if (clickedCharToken && (isGm || clickedCharToken._id === activeCharacterId)) {
                 selectedCharacterForMove = selectedCharacterForMove === clickedCharToken._id ? null : clickedCharToken._id;
+                console.log('Selected for move:', selectedCharacterForMove);
             } else if (selectedCharacterForMove && hoveredCell) {
                 const charToMove = mapData.characters.find(c => c._id === selectedCharacterForMove);
-                if (charToMove) {
+                if (charToMove && (isGm || charToMove._id === activeCharacterId)) {
                     const targetX = hoveredCell.x + mapData.gridSize / 2;
                     const targetY = hoveredCell.y + mapData.gridSize / 2;
-                    socket.emit('character:move', { _id: charToMove._id, name: charToMove.name, mapX: targetX, mapY: targetY });
+                    if (targetX >= 0 && targetY >= 0 && targetX <= battleMapCanvas.width && targetY <= battleMapCanvas.height) {
+                        socket.emit('character:move', { _id: charToMove._id, name: charToMove.name, mapX: targetX, mapY: targetY });
+                        console.log('Moving character:', charToMove._id, 'to', { targetX, targetY });
+                    } else {
+                        console.log('Invalid move coordinates:', { targetX, targetY });
+                    }
+                    selectedCharacterForMove = null;
+                } else {
+                    console.log('No permission to move:', charToMove);
                 }
-                selectedCharacterForMove = null;
+            }
+
+            // Выбор цели в бою
+            if (currentCombatState && currentCombatState.isActive) {
+                if (currentTurnCombatant) {
+                    if (clickedCharToken && (isGm || isMyTurn)) {
+                        const clickedCombatant = findCombatantByCharacterId(clickedCharToken._id);
+                        if (clickedCombatant && currentTurnCombatant._id.toString() !== clickedCombatant._id.toString()) {
+                            socket.emit('combat:set_target', { 
+                                targetId: clickedCombatant._id.toString() 
+                            });
+                            console.log('Target set:', clickedCombatant);
+                            selectedCharacterForMove = null;
+                        }
+                    }
+                }
             }
         });
         
         function findClickedCharacter(x, y) {
             return mapData.characters.find(char => {
+                if (!char.currentX || !char.currentY) {
+                    console.warn(`Character ${char._id} has no coordinates:`, char);
+                    return false;
+                }
                 const distance = Math.sqrt(Math.pow(x - char.currentX, 2) + Math.pow(y - char.currentY, 2));
-                return distance <= mapData.gridSize / 2.5;
+                return distance <= mapData.gridSize; // Увеличен радиус для точного клика
             });
         }
         
@@ -770,6 +930,63 @@ document.addEventListener('DOMContentLoaded', () => {
                 sheetModal.classList.add('hidden');
             }
         });
+        
+        // ОБНОВЛЕННЫЕ ОБРАБОТЧИКИ ДЛЯ ЛИСТА ПЕРСОНАЖА
+        sheetContainer.addEventListener('click', (e) => {
+            if (isGm) return; // GM не может редактировать лист персонажа
+            if (e.target.classList.contains('add-attack-btn')) {
+                addAttack(e.target.closest('.attacks-section'));
+            } else if (e.target.classList.contains('add-spell-btn')) {
+                addSpell(e.target.closest('.attacks-section'));
+            } else if (e.target.classList.contains('remove-attack-btn')) {
+                const index = e.target.closest('.attack-item').dataset.index;
+                removeAttack(index);
+            } else if (e.target.classList.contains('remove-spell-btn')) {
+                const index = e.target.closest('.spell-item').dataset.index;
+                removeSpell(index);
+            }
+        });
+        
+        // НОВЫЙ ОБРАБОТЧИК ДЛЯ БОЕВЫХ ДЕЙСТВИЙ
+        document.getElementById('attack-spells-panel').addEventListener('click', (e) => {
+            const btn = e.target.closest('.combat-action-btn');
+            if (btn) {
+                const currentTurnCombatant = currentCombatState && currentCombatState.isActive ? currentCombatState.combatants[currentCombatState.turn] : null;
+                const isMyTurn = currentTurnCombatant && currentTurnCombatant.characterId === activeCharacterId;
+                
+                if (!isMyTurn && !isGm) {
+                    alert('Сейчас не ваш ход!');
+                    return;
+                }
+                
+                selectedCombatAction = {
+                    name: btn.dataset.name,
+                    type: btn.dataset.type,
+                    bonus: btn.dataset.bonus,
+                    damage: btn.dataset.damage,
+                    damageType: btn.dataset.damageType,
+                    description: btn.dataset.description,
+                };
+                
+                document.querySelectorAll('.combat-action-btn.active').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            }
+        });
+    }
+
+    function handleCombatAction(action, targetChar) {
+        if (!action || !targetChar) return;
+        
+        const targetCombatant = findCombatantByCharacterId(targetChar._id);
+        const targetName = targetCombatant ? targetCombatant.name : targetChar.name;
+
+        // Бросок на попадание
+        const attackRollCommand = `/roll 1d20${action.bonus} vs AC ${targetName}`;
+        sendLogMessage(`использует ${action.name} против ${targetName}. Бросок на попадание: ${attackRollCommand}`);
+        
+        // Бросок на урон
+        const damageRollCommand = `/roll ${action.damage}`;
+        sendLogMessage(`урон от ${action.name}: ${damageRollCommand} ${action.damageType}`);
     }
     
     // --- ЛОГИКА ЛИСТА ПЕРСОНАЖА ---
@@ -790,9 +1007,84 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         
         const playerNameInput = sheet.querySelector('[data-field="playerName"]');
-        if (playerNameInput) playerNameInput.value = userData.username;
+        if (playerNameInput) playerNameInput.value = charData.playerName || userData.username;
 
         updateCalculatedFields(sheet, charData);
+        populateAttacksAndSpells(sheet, charData);
+    }
+
+    function populateAttacksAndSpells(sheet, charData) {
+        const attacksList = sheet.querySelector('#attacks-list');
+        const spellsList = sheet.querySelector('#spells-list');
+
+        attacksList.innerHTML = '';
+        spellsList.innerHTML = '';
+
+        if (charData.attacks && charData.attacks.length > 0) {
+            charData.attacks.forEach((attack, index) => {
+                const attackItem = document.createElement('div');
+                attackItem.className = 'attack-item';
+                attackItem.dataset.index = index;
+                attackItem.innerHTML = `
+                    <input type="text" placeholder="Название" data-field="name" value="${attack.name}" class="char-sheet-input attack-input" ${isGm ? 'readonly' : ''}>
+                    <input type="text" placeholder="Бонус атаки" data-field="bonus" value="${attack.bonus}" class="char-sheet-input attack-input" ${isGm ? 'readonly' : ''}>
+                    <input type="text" placeholder="Урон" data-field="damage" value="${attack.damage}" class="char-sheet-input attack-input" ${isGm ? 'readonly' : ''}>
+                    <input type="text" placeholder="Тип урона" data-field="damageType" value="${attack.damageType}" class="char-sheet-input attack-input" ${isGm ? 'readonly' : ''}>
+                    ${!isGm ? '<button class="remove-attack-btn">&times;</button>' : ''}
+                `;
+                attacksList.appendChild(attackItem);
+            });
+        }
+        
+        if (charData.spells && charData.spells.length > 0) {
+            charData.spells.forEach((spell, index) => {
+                const spellItem = document.createElement('div');
+                spellItem.className = 'spell-item';
+                spellItem.dataset.index = index;
+                spellItem.innerHTML = `
+                    <div class="spell-header">
+                        <input type="text" placeholder="Название" data-field="name" value="${spell.name}" class="char-sheet-input spell-input spell-title" ${isGm ? 'readonly' : ''}>
+                        <input type="text" placeholder="Уровень" data-field="level" value="${spell.level}" class="char-sheet-input spell-input" ${isGm ? 'readonly' : ''}>
+                        ${!isGm ? '<button class="remove-spell-btn">&times;</button>' : ''}
+                    </div>
+                    <div class="spell-details">
+                        <input type="text" placeholder="Бонус атаки" data-field="attackBonus" value="${spell.attackBonus}" class="char-sheet-input spell-input" ${isGm ? 'readonly' : ''}>
+                        <input type="text" placeholder="Урон" data-field="damage" value="${spell.damage}" class="char-sheet-input spell-input" ${isGm ? 'readonly' : ''}>
+                        <input type="text" placeholder="Тип урона" data-field="damageType" value="${spell.damageType}" class="char-sheet-input spell-input" ${isGm ? 'readonly' : ''}>
+                    </div>
+                    <textarea placeholder="Описание" data-field="description" class="char-sheet-input spell-input" ${isGm ? 'readonly' : ''}>${spell.description}</textarea>
+                `;
+                spellsList.appendChild(spellItem);
+            });
+        }
+    }
+
+    function addAttack(parent) {
+        if (!currentCharacterData.attacks) currentCharacterData.attacks = [];
+        currentCharacterData.attacks.push({ name: '', bonus: '', damage: '', damageType: '' });
+        populateAttacksAndSpells(parent.closest('.character-sheet'), currentCharacterData);
+        saveSheetData();
+    }
+
+    function removeAttack(index) {
+        if (!currentCharacterData.attacks) return;
+        currentCharacterData.attacks.splice(index, 1);
+        populateAttacksAndSpells(sheetContainer.querySelector('.character-sheet'), currentCharacterData);
+        saveSheetData();
+    }
+    
+    function addSpell(parent) {
+        if (!currentCharacterData.spells) currentCharacterData.spells = [];
+        currentCharacterData.spells.push({ name: '', level: 'Заговор', attackBonus: '', damage: '', damageType: '', description: '' });
+        populateAttacksAndSpells(parent.closest('.character-sheet'), currentCharacterData);
+        saveSheetData();
+    }
+
+    function removeSpell(index) {
+        if (!currentCharacterData.spells) return;
+        currentCharacterData.spells.splice(index, 1);
+        populateAttacksAndSpells(sheetContainer.querySelector('.character-sheet'), currentCharacterData);
+        saveSheetData();
     }
     
     function updateCalculatedFields(sheet, charData) {
@@ -828,13 +1120,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function saveSheetData() {
         if (!activeCharacterId) return;
+        if (isGm) return;
 
         const sheet = sheetContainer.querySelector('.character-sheet');
         if (!sheet) return;
         
         const dataToSave = { ...currentCharacterData };
 
-        const inputs = sheet.querySelectorAll('.char-sheet-input');
+        // Сохранение простых полей
+        const inputs = sheet.querySelectorAll('.char-sheet-input:not(.attack-input):not(.spell-input)');
         inputs.forEach(input => {
             const field = input.dataset.field;
             if (input.type === 'checkbox') {
@@ -846,8 +1140,31 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         
+        // Сохранение атак
+        dataToSave.attacks = [];
+        const attackItems = sheet.querySelectorAll('.attack-item');
+        attackItems.forEach(item => {
+            const attack = {};
+            item.querySelectorAll('.attack-input').forEach(input => {
+                attack[input.dataset.field] = input.value;
+            });
+            dataToSave.attacks.push(attack);
+        });
+
+        // Сохранение заклинаний
+        dataToSave.spells = [];
+        const spellItems = sheet.querySelectorAll('.spell-item');
+        spellItems.forEach(item => {
+            const spell = {};
+            item.querySelectorAll('.spell-input').forEach(input => {
+                spell[input.dataset.field] = input.value;
+            });
+            dataToSave.spells.push(spell);
+        });
+        
         currentCharacterData = dataToSave;
         updateCalculatedFields(sheet, currentCharacterData);
+        populateAttacksAndSpells(sheet, currentCharacterData);
 
         try {
             await fetch(`${BACKEND_URL}/api/characters/${activeCharacterId}`, {
@@ -870,7 +1187,6 @@ document.addEventListener('DOMContentLoaded', () => {
             sheetUpdateTimeout = setTimeout(saveSheetData, 1000);
         }
     });
-
 
     // --- Динамическое создание панели кубиков ---
     function createDiceRoller() {

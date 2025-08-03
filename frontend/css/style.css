@@ -322,6 +322,7 @@ select {
     text-align: center;
     font-size: 14px;
     border-radius: var(--border-radius-small);
+    appearance: textfield;
     -moz-appearance: textfield;
 }
 .initiative-input::-webkit-outer-spin-button,
@@ -728,4 +729,142 @@ select {
     padding: 10px;
     border-radius: var(--border-radius-small);
     border: 1px solid var(--border-color);
+}
+/* НОВЫЕ СТИЛИ ДЛЯ БЛОКА АТАК И ЗАКЛИНАНИЙ В ЛИСТЕ ПЕРСОНАЖА*/
+.attacks-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.attacks-section h3 {
+    margin-bottom: 15px;
+}
+
+#attacks-list, #spells-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.add-attack-btn, .add-spell-btn {
+    width: auto;
+    padding: 6px 12px;
+    font-size: 12px;
+    align-self: flex-start;
+    margin-top: 5px;
+}
+
+.attack-item {
+    display: grid;
+    grid-template-columns: 2fr 1fr 2fr 1fr auto;
+    gap: 5px;
+    align-items: center;
+    background: var(--bg-dark-secondary);
+    padding: 8px;
+    border-radius: var(--border-radius-small);
+}
+
+.attack-item input {
+    background-color: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border-color);
+    padding: 4px;
+    font-size: 13px;
+}
+
+.remove-attack-btn {
+    background: transparent;
+    color: var(--text-secondary);
+    border: none;
+    font-size: 20px;
+    line-height: 1;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0.5;
+}
+.remove-attack-btn:hover {
+    color: var(--accent-danger);
+    opacity: 1;
+    box-shadow: none;
+}
+
+.spell-item {
+    background: var(--bg-dark-secondary);
+    padding: 10px;
+    border-radius: var(--border-radius-small);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.spell-header {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.spell-header .spell-title {
+    flex-grow: 1;
+}
+
+.spell-header input {
+    background-color: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border-color);
+    padding: 4px;
+    font-size: 14px;
+}
+
+.spell-details {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+}
+
+.spell-details input {
+    background-color: transparent;
+    border: none;
+    border-bottom: 1px solid var(--border-color);
+    padding: 4px;
+    font-size: 13px;
+}
+
+.spell-item textarea {
+    min-height: 50px;
+}
+
+.remove-spell-btn {
+    background: transparent;
+    color: var(--text-secondary);
+    border: none;
+    font-size: 20px;
+    line-height: 1;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0.5;
+}
+.remove-spell-btn:hover {
+    color: var(--accent-danger);
+    opacity: 1;
+    box-shadow: none;
+}
+
+/* НОВЫЕ СТИЛИ ДЛЯ ПАНЕЛЕЙ В БОЮ */
+#attack-spells-panel, #inventory-panel {
+    min-height: 150px;
+}
+
+#combat-actions-list, #equipment-for-combat {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }

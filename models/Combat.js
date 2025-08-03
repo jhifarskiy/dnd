@@ -26,6 +26,27 @@ const combatantSchema = new mongoose.Schema({
     targetName: {
         type: String,
         default: null
+    },
+    // НОВЫЕ ПОЛЯ ДЛЯ ПОЗИЦИИ И ХП
+    mapX: {
+        type: Number,
+        default: 0
+    },
+    mapY: {
+        type: Number,
+        default: 0
+    },
+    maxHp: {
+        type: Number,
+        default: 10
+    },
+    currentHp: {
+        type: Number,
+        default: 10
+    },
+    tempHp: {
+        type: Number,
+        default: 0
     }
 }, { _id: true }); // _id нужен для уникальной идентификации каждого участника в бою
 
