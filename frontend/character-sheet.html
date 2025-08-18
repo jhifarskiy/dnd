@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<div class="cs-container">
+    <div class="cs-main-sheet-v3">
+        <header class="cs-header-v2">
+            <div class="cs-header-name-v2">
+                <input type="text" data-field="name" class="char-sheet-input" placeholder="Либериус">
+                <label>Имя персонажа</label>
+            </div>
+            <div class="cs-header-info-grid-v2">
+                <div class="info-item">
+                    <input type="text" data-field="classLevel" class="char-sheet-input">
+                    <label>Класс и уровень</label>
+                </div>
+                 <div class="info-item">
+                    <input type="text" data-field="race" class="char-sheet-input">
+                    <label>Раса</label>
+                </div>
+                <div class="info-item">
+                    <input type="text" data-field="background" class="char-sheet-input">
+                    <label>Предыстория</label>
+                </div>
+                <div class="info-item">
+                    <input type="text" data-field="alignment" class="char-sheet-input">
+                    <label>Мировоззрение</label>
+                </div>
+                 <div class="info-item">
+                    <input type="text" data-field="playerName" class="char-sheet-input" readonly>
+                    <label>Имя игрока</label>
+                </div>
+                <div class="info-item">
+                    <input type="number" data-field="experience" class="char-sheet-input">
+                    <label>Очки опыта</label>
+                </div>
+            </div>
+        </header>
+
+        <main class="cs-main-grid-v4">
+            <div class="cs-left-column-v3">
+                <div class="cs-abilities-v4">
+                    <div class="cs-ability-box-v4">
+                        <label>СИЛА</label>
+                        <div class="cs-modifier-display-v4"><input type="text" class="char-sheet-input" data-field="strengthModifier" readonly></div>
+                        <div class="cs-score-input-v4"><input type="number" class="char-sheet-input" data-field="strength"></div>
+                    </div>
+                    <div class="cs-ability-box-v4">
+                        <label>ЛОВКОСТЬ</label>
+                        <div class="cs-modifier-display-v4"><input type="text" class="char-sheet-input" data-field="dexterityModifier" readonly></div>
+                        <div class="cs-score-input-v4"><input type="number" class="char-sheet-input" data-field="dexterity"></div>
+                    </div>
+                    <div class="cs-ability-box-v4">
+                        <label>ТЕЛОСЛ.</label>
+                        <div class="cs-modifier-display-v4"><input type="text" class="char-sheet-input" data-field="constitutionModifier" readonly></div>
+                        <div class="cs-score-input-v4"><input type="number" class="char-sheet-input" data-field="constitution"></div>
+                    </div>
+                    <div class="cs-ability-box-v4">
+                        <label>ИНТЕЛЛЕКТ</label>
+                        <div class="cs-modifier-display-v4"><input type="text" class="char-sheet-input" data-field="intelligenceModifier" readonly></div>
+                        <div class="cs-score-input-v4"><input type="number" class="char-sheet-input" data-field="intelligence"></div>
+                    </div>
+                    <div class="cs-ability-box-v4">
+                        <label>МУДРОСТЬ</label>
+                        <div class="cs-modifier-display-v4"><input type="text" class="char-sheet-input" data-field="wisdomModifier" readonly></div>
+                        <div class="cs-score-input-v4"><input type="number" class="char-sheet-input" data-field="wisdom"></div>
+                    </div>
+                    <div class="cs-ability-box-v4">
+                        <label>ХАРИЗМА</label>
+                        <div class="cs-modifier-display-v4"><input type="text" class="char-sheet-input" data-field="charismaModifier" readonly></div>
+                        <div class="cs-score-input-v4"><input type="number" class="char-sheet-input" data-field="charisma"></div>
+                    </div>
+                </div>
+                <div class="cs-insp-prof-v2">
+                    <div class="cs-insp-v2">
+                        <input type="text" data-field="inspiration" class="char-sheet-input">
+                        <label>Вдохновение</label>
+                    </div>
+                    <div class="cs-prof-v2">
+                        <input type="text" data-field="proficiencyBonus" class="char-sheet-input" readonly>
+                        <label>БМ</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="cs-center-column-v3">
+                <div class="cs-insp-prof-v2-horizontal">
+                    <div class="cs-insp-v2">
+                        <input type="text" data-field="inspiration" class="char-sheet-input">
+                        <label>Вдохновение</label>
+                    </div>
+                    <div class="cs-prof-v2">
+                        <input type="text" data-field="proficiencyBonus" class="char-sheet-input" readonly>
+                        <label>БМ</label>
+                    </div>
+                </div>
+                <div class="cs-saves-v2 cs-box-v2">
+                    <ul class="cs-skills-list-v2">
+                        <li class="cs-skill-item-v2"><input type="checkbox" data-field="strengthSaveProficient" class="cs-proficient-checkbox-v2"><span class="cs-skill-bonus-v2" data-field="strengthSave">+0</span><span>Сила</span></li>
+                        <li class="cs-skill-item-v2"><input type="checkbox" data-field="dexteritySaveProficient" class="cs-proficient-checkbox-v2"><span class="cs-skill-bonus-v2" data-field="dexteritySave">+0</span><span>Ловкость</span></li>
+                        <li class="cs-skill-item-v2"><input type="checkbox" data-field="constitutionSaveProficient" class="cs-proficient-checkbox-v2"><span class="cs-skill-bonus-v2" data-field="constitutionSave">+0</span><span>Телосложение</span></li>
+                        <li class="cs-skill-item-v2"><input type="checkbox" data-field="intelligenceSaveProficient" class="cs-proficient-checkbox-v2"><span class="cs-skill-bonus-v2" data-field="intelligenceSave">+0</span><span>Интеллект</span></li>
+                        <li class="cs-skill-item-v2"><input type="checkbox" data-field="wisdomSaveProficient" class="cs-proficient-checkbox-v2"><span class="cs-skill-bonus-v2" data-field="wisdomSave">+0</span><span>Мудрость</span></li>
+                        <li class="cs-skill-item-v2"><input type="checkbox" data-field="charismaSaveProficient" class="cs-proficient-checkbox-v2"><span class="cs-skill-bonus-v2" data-field="charismaSave">+0</span><span>Харизма</span></li>
+                    </ul>
+                    <label class="cs-box-label-v2">Спасброски</label>
+                </div>
+                <div class="cs-skills-v2 cs-box-v2">
+                    <ul class="cs-skills-list-v2">
+                        <li class="cs-skill-item-v2"><input type="checkbox" data-field="acrobaticsProficient" class="cs-proficient-checkbox-v2"><span class="cs-skill-bonus-v2" data-field="acrobatics">+0</span><span>Акробатика (Лов)</span></li>
+                        <li class="cs-skill-item-v2"><input type="checkbox" data-field="animalHandlingProficient" class="cs-proficient-checkbox-v2"><span class="cs-skill-bonus-v2" data-field="animalHandling">+0</span><span>Уход за животными (Муд)</span></li>
+                        <li class="cs-skill-item-v2"><input type="checkbox" data-field="arcanaProficient" class="cs-proficient-checkbox-v2"><span class="cs-skill-bonus-v2" data-field="arcana">+0</span><span>Магия (Инт)</span></li>
+                        <li class="cs-skill-item-v2"><input type="checkbox" data-field="athleticsProficient" class="cs-proficient-checkbox-v2"><span class="cs-skill-bonus-v2" data-field="athletics">+0</span><span>Атлетика (Сил)</span></li>
+                        <li class="cs-skill-item-v2"><input type="checkbox" data-field="deceptionProficient" class="cs-proficient-checkbox-v2"><span class="cs-skill-bonus-v2" data-field="deception">+0</span><span>Обман (Хар)</span></li>
+                        <li class="cs-skill-item-v2"><input type="checkbox" data-field="historyProficient" class="cs-proficient-checkbox-v2"><span class="cs-skill-bonus-v2" data-field="history">+0</span><span>История (Инт)</span></li>
+                        <li class="cs-skill-item-v2"><input type="checkbox" data-field="insightProficient" class="cs-proficient-checkbox-v2"><span class="cs-skill-bonus-v2" data-field="insight">+0</span><span>Проницательность (Муд)</span></li>
+                        <li class="cs-skill-item-v2"><input type="checkbox" data-field="intimidationProficient" class="cs-proficient-checkbox-v2"><span class="cs-skill-bonus-v2" data-field="intimidation">+0</span><span>Запугивание (Хар)</span></li>
+                        <li class="cs-skill-item-v2"><input type="checkbox" data-field="investigationProficient" class="cs-proficient-checkbox-v2"><span class="cs-skill-bonus-v2" data-field="investigation">+0</span><span>Анализ (Инт)</span></li>
+                        <li class="cs-skill-item-v2"><input type="checkbox" data-field="medicineProficient" class="cs-proficient-checkbox-v2"><span class="cs-skill-bonus-v2" data-field="medicine">+0</span><span>Медицина (Муд)</span></li>
+                        <li class="cs-skill-item-v2"><input type="checkbox" data-field="natureProficient" class="cs-proficient-checkbox-v2"><span class="cs-skill-bonus-v2" data-field="nature">+0</span><span>Природа (Инт)</span></li>
+                        <li class="cs-skill-item-v2"><input type="checkbox" data-field="perceptionProficient" class="cs-proficient-checkbox-v2"><span class="cs-skill-bonus-v2" data-field="perception">+0</span><span>Внимательность (Муд)</span></li>
+                        <li class="cs-skill-item-v2"><input type="checkbox" data-field="performanceProficient" class="cs-proficient-checkbox-v2"><span class="cs-skill-bonus-v2" data-field="performance">+0</span><span>Выступление (Хар)</span></li>
+                        <li class="cs-skill-item-v2"><input type="checkbox" data-field="persuasionProficient" class="cs-proficient-checkbox-v2"><span class="cs-skill-bonus-v2" data-field="persuasion">+0</span><span>Убеждение (Хар)</span></li>
+                        <li class="cs-skill-item-v2"><input type="checkbox" data-field="religionProficient" class="cs-proficient-checkbox-v2"><span class="cs-skill-bonus-v2" data-field="religion">+0</span><span>Религия (Инт)</span></li>
+                        <li class="cs-skill-item-v2"><input type="checkbox" data-field="sleightOfHandProficient" class="cs-proficient-checkbox-v2"><span class="cs-skill-bonus-v2" data-field="sleightOfHand">+0</span><span>Ловкость рук (Лов)</span></li>
+                        <li class="cs-skill-item-v2"><input type="checkbox" data-field="stealthProficient" class="cs-proficient-checkbox-v2"><span class="cs-skill-bonus-v2" data-field="stealth">+0</span><span>Скрытность (Лов)</span></li>
+                        <li class="cs-skill-item-v2"><input type="checkbox" data-field="survivalProficient" class="cs-proficient-checkbox-v2"><span class="cs-skill-bonus-v2" data-field="survival">+0</span><span>Выживание (Муд)</span></li>
+                    </ul>
+                    <label class="cs-box-label-v2">Навыки</label>
+                </div>
+                <div class="cs-passive-perception-v2 cs-box-v2">
+                    <input type="text" data-field="passivePerception" class="char-sheet-input" readonly>
+                    <label class="cs-box-label-v2">Пассивная мудрость (вним.)</label>
+                </div>
+            </div>
+
+            <div class="cs-right-column-v3">
+                 <div class="cs-combat-stats-v2">
+                    <div class="cs-combat-stat-box-v2">
+                        <input type="number" data-field="ac" class="char-sheet-input">
+                        <label>КД</label>
+                    </div>
+                    <div class="cs-combat-stat-box-v2">
+                        <input type="text" data-field="initiative" class="char-sheet-input" readonly>
+                        <label>Инициатива</label>
+                    </div>
+                    <div class="cs-combat-stat-box-v2">
+                        <input type="text" data-field="speed" class="char-sheet-input">
+                        <label>Скорость</label>
+                    </div>
+                </div>
+                
+                <div class="cs-health-v1 cs-box-v2">
+
+    <div class="cs-hp-top-section">
+        <div class="cs-hp-max">
+            <label>Макс. хитов</label>
+            <input type="number" data-field="maxHp" class="char-sheet-input">
+        </div>
+        <div class="cs-hp-current">
+            <label>Текущие хиты</label>
+            <input type="number" data-field="currentHp" class="char-sheet-input">
+        </div>
+        <div class="cs-hp-temp">
+            <label>Врем. хиты</label>
+            <input type="number" data-field="tempHp" class="char-sheet-input" placeholder="-">
+        </div>
+    </div>
+
+    <div class="cs-hp-bottom-section">
+        <div class="cs-hit-dice-v3">
+            <label class="cs-box-label-top">Кости хитов</label>
+            <input type="text" data-field="hitDice" class="char-sheet-input">
+        </div>
+        <div class="cs-death-saves-v3">
+           <label class="cs-box-label-top">Спасброски</label>
+           <div class="cs-ds-groups">
+                <div class="cs-ds-group-v3">
+                    <span>Успехи</span>
+                    <div class="cs-ds-checkboxes">
+                        <input type="checkbox" data-group="deathSaves" data-field="successes" value="1"><input type="checkbox" data-group="deathSaves" data-field="successes" value="2"><input type="checkbox" data-group="deathSaves" data-field="successes" value="3">
+                    </div>
+                </div>
+                <div class="cs-ds-group-v3">
+                    <span>Провалы</span>
+                    <div class="cs-ds-checkboxes">
+                        <input type="checkbox" data-group="deathSaves" data-field="failures" value="1"><input type="checkbox" data-group="deathSaves" data-field="failures" value="2"><input type="checkbox" data-group="deathSaves" data-field="failures" value="3">
+                    </div>
+                </div>
+           </div>
+        </div>
+    </div>
+</div>
+                <div class="cs-attacks-v5 cs-box-v2">
+                    <div class="cs-spell-level-nav">
+                        <div class="cs-level-nav-scroller">
+                            <button class="cs-level-nav-btn active" data-level="1">1</button>
+                            <button class="cs-level-nav-btn" data-level="2">2</button>
+                            <button class="cs-level-nav-btn" data-level="3">3</button>
+                            <button class="cs-level-nav-btn" data-level="4">4</button>
+                            <button class="cs-level-nav-btn" data-level="5">5</button>
+                            <button class="cs-level-nav-btn" data-level="6">6</button>
+                            <button class="cs-level-nav-btn" data-level="7">7</button>
+                            <button class="cs-level-nav-btn" data-level="8">8</button>
+                            <button class="cs-level-nav-btn" data-level="9">9</button>
+                        </div>
+                    </div>
+                    <div class="cs-content-filters">
+                        <button class="cs-filter-btn active" data-filter="attacks">Атаки</button>
+                        <button class="cs-filter-btn" data-filter="spells">Заклинания</button>
+                        <button class="cs-filter-btn" data-filter="cantrips">Заговоры</button>
+                    </div>
+                    <div class="cs-attacks-spell-content">
+                        <ul class="cs-attacks-spell-list">
+                            <li class="attack-spell-item">
+                                <div class="item-main-info">
+                                    <input type="checkbox" class="item-prepared-checkbox" title="Подготовлено">
+                                    <div style="position: relative;">
+                                        <input type="text" value="Ледяной луч" placeholder="Название">
+                                        <span class="field-label">Название</span>
+                                    </div>
+                                    <div style="position: relative;">
+                                        <input type="text" value="1к8" placeholder="Урон">
+                                        <span class="field-label">Урон</span>
+                                    </div>
+                                    <div style="position: relative;">
+                                        <input type="text" value="+5" placeholder="Бонус атаки">
+                                        <span class="field-label">Бонус атаки</span>
+                                    </div>
+                                    <div style="position: relative;">
+                                        <input type="text" value="ледяной" placeholder="Тип урона">
+                                        <span class="field-label">Тип урона</span>
+                                    </div>
+                                </div>
+                                <button class="item-info-btn" title="Информация">
+                                    <img src="img/icons/info.svg" alt="Info" class="info-icon">
+                                </button>
+                                <button class="item-delete-btn" title="Удалить">×</button>
+                            </li>
+                            <li class="attack-spell-item">
+                                <div class="item-main-info">
+                                    <input type="checkbox" class="item-prepared-checkbox" title="Подготовлено" checked>
+                                    <div style="position: relative;">
+                                        <input type="text" value="Огненный шар" placeholder="Название">
+                                        <span class="field-label">Название</span>
+                                    </div>
+                                    <div style="position: relative;">
+                                        <input type="text" value="8к6" placeholder="Урон">
+                                        <span class="field-label">Урон</span>
+                                    </div>
+                                    <div style="position: relative;">
+                                        <input type="text" value="+7" placeholder="Бонус атаки">
+                                        <span class="field-label">Бонус атаки</span>
+                                    </div>
+                                    <div style="position: relative;">
+                                        <input type="text" value="огненный" placeholder="Тип урона">
+                                        <span class="field-label">Тип урона</span>
+                                    </div>
+                                </div>
+                                <button class="item-info-btn" title="Информация">
+                                    <img src="img/icons/info.svg" alt="Info" class="info-icon">
+                                </button>
+                                <button class="item-delete-btn" title="Удалить">×</button>
+                            </li>
+                        </ul>
+                    </div>
+                    <button class="add-new-attack-spell-btn">+ Добавить</button>
+                    <div class="attack-spell-form-container hidden">
+                        <div class="form-grid">
+                            <input type="text" placeholder="Название">
+                            <input type="text" placeholder="Бонус атаки">
+                            <input type="text" placeholder="Урон">
+                            <input type="text" placeholder="Тип урона">
+                            <input type="text" placeholder="Дальность">
+                            <input type="text" placeholder="Тип спасброска">
+                        </div>
+                        <textarea placeholder="Описание..."></textarea>
+                        <div>
+                            <label><input type="checkbox"> Подготовлено</label>
+                        </div>
+                        <div class="form-actions">
+                            <button class="form-save-btn">Сохранить</button>
+                            <button class="form-cancel-btn">Отмена</button>
+                        </div>
+                    </div>
+                    <label class="cs-box-label-v2">Атаки и заклинания</label>
+                </div>
+                 <div class="cs-equipment-v2 cs-box-v2">
+                    <div class="cs-money-v2">
+                        <div><label>ММ</label><input type="number" data-group="money" data-field="cp"></div>
+                        <div><label>СМ</label><input type="number" data-group="money" data-field="sp"></div>
+                        <div><label>ЭМ</label><input type="number" data-group="money" data-field="ep"></div>
+                        <div><label>ЗМ</label><input type="number" data-group="money" data-field="gp"></div>
+                        <div><label>ПМ</label><input type="number" data-group="money" data-field="pp"></div>
+                    </div>
+                    <ul id="equipment-list">
+                    </ul>
+                    <div class="add-equipment-form">
+                        <input type="text" id="new-item-name" placeholder="Название предмета">
+                        <input type="number" id="new-item-quantity" value="1">
+                        <button id="add-equipment-btn">+</button>
+                    </div>
+                    <label class="cs-box-label-v2">Снаряжение</label>
+                </div>
+            </div>
+
+            <div class="cs-far-right-column-v1">
+                <div class="cs-bio-v2 cs-box-v2">
+                    <div class="bio-item">
+                        <label>Черты характера</label>
+                        <textarea data-field="personalityTraits"></textarea>
+                    </div>
+                    <div class="bio-item">
+                        <label>Идеалы</label>
+                        <textarea data-field="ideals"></textarea>
+                    </div>
+                    <div class="bio-item">
+                        <label>Привязанности</label>
+                        <textarea data-field="bonds"></textarea>
+                    </div>
+                    <div class="bio-item">
+                        <label>Слабости</label>
+                        <textarea data-field="flaws"></textarea>
+                    </div>
+                </div>
+                 <div class="cs-features-v2 cs-box-v2">
+                    <textarea data-field="features" class="char-sheet-input"></textarea>
+                    <label class="cs-box-label-v2">Умения и особенности</label>
+                </div>
+                <div class="cs-proficiencies-v2 cs-box-v2">
+                    <textarea data-field="proficienciesAndLanguages" class="char-sheet-input"></textarea>
+                    <label class="cs-box-label-v2">Прочие владения и языки</label>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div class="cs-backstory-sheet">
+        <header class="cs-backstory-header">
+            <input type="text" data-field="name" class="char-sheet-input" readonly>
+            <div class="cs-backstory-header-grid">
+                <div><input type="text" data-field="age" class="char-sheet-input"><label>Возраст</label></div>
+                <div><input type="text" data-field="height" class="char-sheet-input"><label>Рост</label></div>
+                <div><input type="text" data-field="weight" class="char-sheet-input"><label>Вес</label></div>
+                <div><input type="text" data-field="eyes" class="char-sheet-input"><label>Глаза</label></div>
+                <div><input type="text" data-field="skin" class="char-sheet-input"><label>Кожа</label></div>
+                <div><input type="text" data-field="hair" class="char-sheet-input"><label>Волосы</label></div>
+            </div>
+        </header>
+        <main class="cs-backstory-grid">
+            <div class="cs-portrait-box">
+                <div class="cs-portrait-image-container"></div>
+                <label class="cs-box-label">Внешность персонажа</label>
+            </div>
+            <div class="cs-allies">
+                <div class="cs-allies-symbol-container"></div>
+                <textarea data-field="alliesAndOrganizations" class="char-sheet-input"></textarea>
+                <label class="cs-box-label">Союзники и организации</label>
+            </div>
+            <div class="cs-box cs-backstory">
+                <textarea data-field="backstory" class="char-sheet-input"></textarea>
+                <label class="cs-box-label">Предыстория персонажа</label>
+            </div>
+            <div class="cs-box cs-treasure">
+                <textarea data-field="treasure" class="char-sheet-input"></textarea>
+                <label class="cs-box-label">Сокровища</label>
+            </div>
+             <div class="cs-box cs-additional-features">
+                <textarea data-field="additionalFeatures" class="char-sheet-input"></textarea>
+                <label class="cs-box-label">Дополнительные умения и особенности</label>
+            </div>
+        </main>
+    </div>
+
+    <div id="item-info-modal" class="modal-overlay hidden">
+        <div class="info-modal-content">
+            <button class="close-info-modal-btn">&times;</button>
+            <h3 id="info-modal-title"></h3>
+            <p id="info-modal-description"></p>
+        </div>
+    </div>
+</div>

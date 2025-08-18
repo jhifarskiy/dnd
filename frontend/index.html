@@ -43,40 +43,47 @@
                 <ul id="initiativeTracker"></ul>
                 <div id="add-npc-form" class="hidden">
                     <input type="text" id="npcNameInput" placeholder="Имя NPC">
-                    <input type="number" id="npcInitiativeInput" placeholder="Init">
+                    <input type="number" id="npcMaxHpInput" placeholder="HP" style="width: 60px;">
+                    <input type="number" id="npcACInput" placeholder="AC" style="width: 60px;">
+                    <input type="number" id="npcInitiativeInput" placeholder="Init" style="width: 60px;">
                     <button id="addNpcBtn">+</button>
                 </div>
             </div>
             
-            <div id="attack-spells-panel" class="sidebar-panel">
-                <h3>Атаки и Заклинания</h3>
-                <div id="combat-actions-list">
-                    <div id="attacks-for-combat"></div>
-                    <div id="spells-for-combat"></div>
+            <div id="dice-roller-panel" class="sidebar-panel">
+                <h3>Бросок кубиков</h3>
+                <div id="dice-result-display">-</div>
+                <div id="dice-buttons">
+                    <button data-dice="d4">d4</button>
+                    <button data-dice="d6">d6</button>
+                    <button data-dice="d8">d8</button>
+                    <button data-dice="d10">d10</button>
+                    <button data-dice="d12">d12</button>
+                    <button data-dice="d20">d20</button>
+                    <button data-dice="d100">d100</button>
+                </div>
+                <div id="dice-actions">
+                    <button id="roll-dice-btn">Бросить</button>
+                    <input type="number" id="manual-roll-input" placeholder="Вручную">
                 </div>
             </div>
-
-            <div id="inventory-panel" class="sidebar-panel">
-                <h3>Снаряжение</h3>
-                <div id="equipment-for-combat"></div>
-            </div>
-            
         </aside>
 
         <main class="main-content">
             <div id="map-container">
-                <canvas id="battleMap"></canvas>
+                <canvas id="mainCanvas"></canvas>
             </div>
+            
+            <div id="action-bar">
+            </div>
+
             <div id="map-toolbar">
-                 <div class="toolbar-group">
-                    <label for="mapBackground">URL фона:</label>
-                    <input type="text" id="mapBackground" placeholder="https://example.com/map.jpg">
-                    <button id="loadMapBackground">Выбрать</button>
+                <div id="world-map-gm-controls" class="toolbar-group hidden">
+                    <label for="worldMapBackgroundUrl">URL карты мира:</label>
+                    <input type="text" id="worldMapBackgroundUrl" placeholder="https://example.com/world_map.jpg">
+                    <button id="saveWorldMapBtn">Загрузить</button>
                 </div>
-                <div class="toolbar-group">
-                    <label for="gridSize">Сетка:</label>
-                    <input type="number" id="gridSize" value="50">
-                </div>
+
                  <div id="user-panel">
                     <span id="usernameDisplay"></span>
                     <button id="logoutBtn">Выйти</button>
@@ -87,13 +94,22 @@
         <aside class="sidebar right-sidebar">
             <div id="character-manager" class="sidebar-panel">
                 <h3>Персонажи</h3>
-                <select id="characterSelector"></select>
-                <div class="char-buttons">
-                    <button id="loadCharacterBtn">Загрузить</button>
-                    <button id="newCharacterBtn">Новый</button>
-                    <button id="deleteCharacterBtn">Удалить</button>
+                <div class="custom-select-wrapper">
+                    <div id="characterSelectorTrigger" class="custom-select-trigger">
+                        <span>-- Выберите персонажа --</span>
+                        <div class="arrow"></div>
+                    </div>
+                    <div id="characterSelectorOptions" class="custom-select-options">
+                        </div>
                 </div>
-                <button id="open-sheet-btn">Открыть лист персонажа</button>
+                <div class="character-actions">
+                    <div class="char-icon-buttons">
+                        <button id="loadCharacterBtn" class="icon-btn" title="Загрузить персонажа">↓</button>
+                        <button id="newCharacterBtn" class="icon-btn" title="Создать нового персонажа">+</button>
+                        <button id="deleteCharacterBtn" class="icon-btn delete-btn" title="Удалить персонажа">×</button>
+                    </div>
+                    <button id="open-sheet-btn" class="sheet-btn">Лист персонажа</button>
+                </div>
             </div>
 
             <div id="event-log" class="sidebar-panel">
@@ -110,8 +126,15 @@
     <div id="sheet-modal" class="modal-overlay hidden">
         <div class="sheet-modal-content">
             <button id="close-sheet-btn" class="close-btn">&times;</button>
-            <div id="character-sheet-container">
-                </div>
+            <div id="character-sheet-container"></div>
+        </div>
+    </div>
+    
+    <div id="item-info-modal" class="modal-overlay hidden">
+        <div class="info-modal-content">
+            <button class="close-info-modal-btn">&times;</button>
+            <h3 id="info-modal-title"></h3>
+            <p id="info-modal-description"></p>
         </div>
     </div>
 

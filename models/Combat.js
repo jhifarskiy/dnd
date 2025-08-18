@@ -18,24 +18,24 @@ const combatantSchema = new mongoose.Schema({
         type: Boolean, 
         default: true 
     },
-    // === НОВЫЕ ПОЛЯ ===
     targetId: {
-        type: String, // Храним как строку, т.к. это будет _id другого участника боя
+        type: String,
         default: null
     },
     targetName: {
         type: String,
         default: null
     },
-    // НОВЫЕ ПОЛЯ ДЛЯ ПОЗИЦИИ И ХП
-    mapX: {
+    // ИЗМЕНЕНО: Координаты теперь для глобальной карты
+    worldMapX: {
         type: Number,
         default: 0
     },
-    mapY: {
+    worldMapY: {
         type: Number,
         default: 0
     },
+    // ПАРАМЕТРЫ ЗДОРОВЬЯ
     maxHp: {
         type: Number,
         default: 10
@@ -47,8 +47,13 @@ const combatantSchema = new mongoose.Schema({
     tempHp: {
         type: Number,
         default: 0
+    },
+    // КЛАСС БРОНИ
+    ac: {
+        type: Number,
+        default: 10
     }
-}, { _id: true }); // _id нужен для уникальной идентификации каждого участника в бою
+}, { _id: true });
 
 const combatSchema = new mongoose.Schema({
     _id: { 

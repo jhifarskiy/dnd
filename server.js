@@ -2,7 +2,6 @@ const express = require('express');
 const http = require('http');
 const path = require('path');
 const mongoose = require('mongoose');
-const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { Server } = require("socket.io");
@@ -10,14 +9,13 @@ const { DiceRoll } = require('rpg-dice-roller');
 require('dotenv').config();
 
 const Character = require('./models/Character');
-const MapData = require('./models/MapData');
 const Combat = require('./models/Combat');
 const User = require('./models/User');
+const WorldMap = require('./models/WorldMap');
 
 const app = express();
 const port = process.env.PORT || 8080;
 
-app.use(cors());
 app.use(express.json());
 
 const authMiddleware = (req, res, next) => {
@@ -31,6 +29,7 @@ const authMiddleware = (req, res, next) => {
         }
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         req.user = decoded;
+        req.user.isGm = decoded.username.toLowerCase() === 'gm';
         next();
     } catch (e) {
         console.error("Ошибка авторизации:", e.message);
@@ -82,29 +81,35 @@ app.post('/api/auth/login', async (req, res) => {
     }
 });
 
-const FIXED_MAP_ID = "main_map";
-app.get('/api/map', async (req, res) => {
+app.get('/api/worldmap', authMiddleware, async (req, res) => {
     try {
-        let map = await MapData.findById(FIXED_MAP_ID);
+        let map = await WorldMap.findById('main_world_map');
         if (!map) {
-            console.log("Карта не найдена в БД, создаем новую.");
-            map = new MapData({ _id: FIXED_MAP_ID });
+            map = new WorldMap({ _id: 'main_world_map' });
             await map.save();
         }
-        res.json(map);
+        const characters = await Character.find({}, '_id name worldMapX worldMapY isPlayer');
+        res.json({
+            mapData: map,
+            characters: characters
+        });
     } catch (error) {
-        console.error("Ошибка при получении данных карты:", error);
-        res.status(500).json({ message: "Ошибка при получении данных карты." });
+        console.error("Ошибка при получении данных глобальной карты:", error);
+        res.status(500).json({ message: "Ошибка при получении данных глобальной карты." });
     }
 });
 
-app.post('/api/map', async (req, res) => {
+app.post('/api/worldmap', authMiddleware, async (req, res) => {
     try {
-        await MapData.findByIdAndUpdate(FIXED_MAP_ID, req.body, { new: true, upsert: true });
-        res.status(200).json({ message: "Данные карты успешно сохранены!" });
+        if (!req.user.isGm) {
+            return res.status(403).json({ message: "Доступ запрещен." });
+        }
+        await WorldMap.findByIdAndUpdate('main_world_map', req.body, { new: true, upsert: true });
+        io.emit('worldmap:url_update', req.body.backgroundUrl);
+        res.status(200).json({ message: "Глобальная карта успешно сохранена!" });
     } catch (error) {
-        console.error("Ошибка при сохранении данных карты:", error);
-        res.status(500).json({ message: "Ошибка при сохранении данных карты." });
+        console.error("Ошибка при сохранении глобальной карты:", error);
+        res.status(500).json({ message: "Ошибка при сохранении глобальной карты." });
     }
 });
 
@@ -120,8 +125,10 @@ app.get('/api/characters', authMiddleware, async (req, res) => {
 
 app.post('/api/characters', authMiddleware, async (req, res) => {
     try {
-        const newCharacter = new Character({ owner: req.user.userId });
+        const newCharacter = new Character({ owner: req.user.userId, name: 'Новый персонаж', isPlayer: true });
         await newCharacter.save();
+        const updatedCharacters = await Character.find({}, '_id name worldMapX worldMapY isPlayer');
+        io.emit('worldmap:update', updatedCharacters);
         res.status(201).json(newCharacter);
     } catch (error) {
         console.error("Ошибка при создании персонажа:", error);
@@ -129,8 +136,21 @@ app.post('/api/characters', authMiddleware, async (req, res) => {
     }
 });
 
+app.get('/api/characters/all', authMiddleware, async (req, res) => {
+    try {
+        const characters = await Character.find({}, '_id name');
+        res.json(characters);
+    } catch (error) {
+        console.error("Ошибка при получении списка всех персонажей:", error);
+        res.status(500).json({ message: "Ошибка при получении списка всех персонажей." });
+    }
+});
+
 app.get('/api/characters/:id', authMiddleware, async (req, res) => {
     try {
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+            return res.status(404).json({ message: "Персонаж не найден." });
+        }
         const character = await Character.findOne({ _id: req.params.id, owner: req.user.userId });
         if (!character) {
             return res.status(404).json({ message: "Персонаж не найден или доступ запрещен." });
@@ -166,15 +186,6 @@ app.put('/api/characters/:id', authMiddleware, async (req, res) => {
         if (!character) {
             return res.status(404).json({ message: "Персонаж не найден или доступ запрещен." });
         }
-
-        const charIndex = activeCharacters.findIndex(c => c._id.toString() === character._id.toString());
-        if (charIndex !== -1) {
-            activeCharacters[charIndex].name = character.name;
-            activeCharacters[charIndex].mapX = character.mapX;
-            activeCharacters[charIndex].mapY = character.mapY;
-            io.emit('map:update', activeCharacters);
-        }
-
         res.json(character);
     } catch (error) {
         console.error("Ошибка при обновлении персонажа:", error);
@@ -188,10 +199,8 @@ app.delete('/api/characters/:id', authMiddleware, async (req, res) => {
         if (!character) {
             return res.status(404).json({ message: "Персонаж не найден или доступ запрещен." });
         }
-
-        activeCharacters = activeCharacters.filter(c => c._id.toString() !== req.params.id);
-        io.emit('map:update', activeCharacters);
-
+        const updatedCharacters = await Character.find({}, '_id name worldMapX worldMapY isPlayer');
+        io.emit('worldmap:update', updatedCharacters);
         res.json({ message: "Персонаж успешно удален." });
     } catch (error) {
         console.error("Ошибка при удалении персонажа:", error);
@@ -204,20 +213,15 @@ app.put('/api/combat/roll-initiative', authMiddleware, async (req, res) => {
         if (!combatState || !combatState.isActive) {
             return res.status(400).json({ message: "Бой не активен." });
         }
-
         const { combatants } = combatState;
         if (!combatants || combatants.length === 0) {
             return res.status(400).json({ message: "В бою нет участников." });
         }
-
         const rollDie = (sides) => Math.floor(Math.random() * sides) + 1;
-
         const updatedCombatantsPromises = combatants.map(async (combatant) => {
-            if (combatant.initiative !== null) return combatant; // Не перебрасываем тем, у кого уже есть
-
+            if (combatant.initiative !== null) return combatant;
             const initiativeRoll = rollDie(20);
             let modifier = 0;
-
             if (combatant.isPlayer && combatant.characterId) {
                 try {
                     const character = await Character.findById(combatant.characterId);
@@ -228,23 +232,15 @@ app.put('/api/combat/roll-initiative', authMiddleware, async (req, res) => {
                      console.error(`Не удалось найти персонажа ${combatant.characterId} для броска инициативы`, e);
                 }
             }
-            
             combatant.initiative = initiativeRoll + modifier;
             return combatant;
         });
-
         const updatedCombatants = await Promise.all(updatedCombatantsPromises);
-
         updatedCombatants.sort((a, b) => (b.initiative || -1) - (a.initiative || -1));
-        
         combatState.combatants = updatedCombatants;
-        
-        await combatState.save(); 
-
+        await combatState.save();
         io.emit('combat:update', combatState);
-
-        res.status(200).json(combatState); 
-
+        res.status(200).json(combatState);
     } catch (error) {
         console.error("Ошибка при броске инициативы:", error);
         res.status(500).json({ message: "Внутренняя ошибка сервера при броске инициативы." });
@@ -252,28 +248,17 @@ app.put('/api/combat/roll-initiative', authMiddleware, async (req, res) => {
 });
 
 app.use(express.static('frontend'));
+app.get('*', (req, res) => { res.sendFile(path.join(__dirname, 'frontend', 'index.html')); });
 
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'frontend', 'index.html'));
-});
+const httpServer = http.createServer(app);
+const io = new Server(httpServer, { cors: { origin: "*", methods: ["GET", "POST"] } });
 
-const server = http.createServer(app);
-
-const io = new Server(server, {
-    cors: {
-        origin: "*",
-        methods: ["GET", "POST"]
-    }
-});
-
-let activeCharacters = [];
 let combatState = null;
 
 async function loadInitialState() {
     try {
         combatState = await Combat.findById('main_combat');
         if (!combatState) {
-            console.log("Состояние боя не найдено в БД, создаем новое по умолчанию.");
             combatState = new Combat({ _id: 'main_combat' });
             await combatState.save();
         }
@@ -287,7 +272,7 @@ mongoose.connect(process.env.MONGODB_URI)
     .then(() => {
         console.log("Успешное подключение к MongoDB!");
         loadInitialState().then(() => {
-            server.listen(port, () => {
+            httpServer.listen(port, () => {
                 console.log(`Node.js backend запущен на http://localhost:${port}`);
             });
         });
@@ -297,65 +282,60 @@ mongoose.connect(process.env.MONGODB_URI)
         process.exit(1);
     });
 
-io.on('connection', (socket) => {
-    console.log(`Пользователь подключен: ${socket.id}`);
-
-    socket.isGm = false;
-    socket.characterId = null;
-
-    socket.emit('map:update', activeCharacters);
-    socket.emit('combat:update', combatState);
-
-    socket.on('user:identify', ({ username }) => {
-        socket.username = username;
-        if (username.toLowerCase() === 'gm') {
-            socket.isGm = true;
-            console.log(`Пользователь ${username} (${socket.id}) идентифицирован как ГМ.`);
-        } else {
-            console.log(`Пользователь ${username} (${socket.id}) идентифицирован как игрок.`);
+io.use((socket, next) => {
+    const token = socket.handshake.auth.token;
+    if (!token) {
+        return next(new Error('Authentication error'));
+    }
+    jwt.verify(token, process.env.JWT_SECRET, (err, decoded) => {
+        if (err) {
+            return next(new Error('Authentication error'));
         }
+        socket.userId = decoded.userId;
+        socket.username = decoded.username;
+        socket.isGm = decoded.username.toLowerCase() === 'gm';
+        next();
     });
+});
+
+io.on('connection', (socket) => {
+    console.log(`Пользователь подключен: ${socket.id} (${socket.username})`);
+    socket.characterId = null;
+    socket.emit('combat:update', combatState);
 
     socket.on('character:join', (charData) => {
         socket.characterId = charData._id.toString();
-        const existingCharIndex = activeCharacters.findIndex(c => c._id.toString() === charData._id.toString());
-        if (existingCharIndex === -1) {
-            activeCharacters.push(charData);
-        } else {
-            activeCharacters[existingCharIndex] = charData;
-        }
-        io.emit('map:update', activeCharacters);
     });
 
-    socket.on('character:move', async (moveData) => {
-        const charIndex = activeCharacters.findIndex(c => c._id.toString() === moveData._id.toString());
-        if (charIndex !== -1) {
-            activeCharacters[charIndex].mapX = moveData.mapX;
-            activeCharacters[charIndex].mapY = moveData.mapY;
-            if (moveData.name) {
-                activeCharacters[charIndex].name = moveData.name;
+    socket.on('worldmap:character:move', async ({ charId, x, y }) => {
+        try {
+            const character = await Character.findById(charId);
+            if (!character) return;
+            if (character.owner.toString() !== socket.userId && !socket.isGm) {
+                return;
             }
-            try {
-                await Character.findByIdAndUpdate(moveData._id, { mapX: moveData.mapX, mapY: moveData.mapY, name: moveData.name });
-            } catch (e) {
-                console.error("Не удалось сохранить данные перемещения персонажа в БД:", e);
+            await Character.findByIdAndUpdate(charId, { worldMapX: x, worldMapY: y });
+            if (combatState && combatState.isActive) {
+                const combatant = combatState.combatants.find(c => c.characterId && c.characterId.toString() === charId);
+                if (combatant) {
+                    combatant.worldMapX = x;
+                    combatant.worldMapY = y;
+                    combatState.markModified('combatants');
+                    await combatState.save();
+                    io.emit('combat:update', combatState);
+                }
             }
-            io.emit('map:update', activeCharacters);
+            const updatedCharacters = await Character.find({}, '_id name worldMapX worldMapY isPlayer');
+            io.emit('worldmap:update', updatedCharacters);
+        } catch(e) {
+            console.error("Ошибка при перемещении по глобальной карте:", e);
         }
-    });
-
-    socket.on('map:get', () => {
-        socket.emit('map:update', activeCharacters);
     });
 
     socket.on('disconnect', () => {
-        if (socket.characterId) {
-            activeCharacters = activeCharacters.filter(c => c._id.toString() !== socket.characterId);
-            io.emit('map:update', activeCharacters);
-        }
         console.log(`Пользователь отключен: ${socket.id}`);
     });
-
+    
     socket.on('log:send', (messageData) => {
         const commandMatch = messageData.text.match(/^\/(r|roll)\s+(.*)/);
         if (commandMatch) {
@@ -379,13 +359,25 @@ io.on('connection', (socket) => {
             combatState.isActive = true;
             combatState.round = 1;
             combatState.turn = 0;
-            combatState.combatants = activeCharacters.map(char => ({
+            
+            const connectedSockets = Array.from(io.sockets.sockets.values());
+            const activePlayerCharIds = connectedSockets
+                .map(s => s.characterId)
+                .filter(id => id);
+
+            const activePlayerCharacters = await Character.find({ _id: { $in: activePlayerCharIds } });
+
+            combatState.combatants = activePlayerCharacters.map(char => ({
                 characterId: char._id,
                 name: char.name,
                 initiative: null,
                 isPlayer: true,
-                mapX: char.mapX,
-                mapY: char.mapY,
+                worldMapX: char.worldMapX,
+                worldMapY: char.worldMapY,
+                maxHp: char.maxHp,
+                currentHp: char.currentHp,
+                tempHp: char.tempHp,
+                ac: char.ac
             }));
             await combatState.save();
             io.emit('combat:update', combatState);
@@ -424,23 +416,31 @@ io.on('connection', (socket) => {
                 currentCombatant.targetId = null;
                 currentCombatant.targetName = null;
             }
-
             combatState.turn++;
             if (combatState.turn >= combatState.combatants.length) {
                 combatState.turn = 0;
                 combatState.round++;
             }
-            
             combatState.markModified('combatants');
             await combatState.save();
             io.emit('combat:update', combatState);
         }
     });
 
-    socket.on('combat:add_npc', async ({ name, initiative }) => {
+    socket.on('combat:add_npc', async ({ name, initiative, maxHp, ac, worldMapX, worldMapY }) => {
         if (!socket.isGm) return;
         if (combatState && combatState.isActive) {
-            combatState.combatants.push({ name, initiative: isNaN(initiative) ? null : initiative, isPlayer: false, mapX: 100, mapY: 100 });
+            const newNpcData = {
+                name,
+                initiative: isNaN(initiative) ? null : initiative,
+                isPlayer: false,
+                worldMapX: worldMapX,
+                worldMapY: worldMapY,
+                maxHp: maxHp || 10,
+                currentHp: maxHp || 10,
+                ac: ac || 10,
+            };
+            combatState.combatants.push(newNpcData);
             combatState.combatants.sort((a, b) => (b.initiative || -1) - (a.initiative || -1));
             await combatState.save();
             io.emit('combat:update', combatState);
@@ -452,19 +452,16 @@ io.on('connection', (socket) => {
         if (combatState && combatState.isActive) {
             const combatantIndex = combatState.combatants.findIndex(c => c._id.toString() === combatantId);
             if(combatantIndex === -1) return;
-            
             if (combatantIndex < combatState.turn) {
                 combatState.turn--;
             }
-
             combatState.combatants.splice(combatantIndex, 1);
-            
             if (combatState.combatants.length > 0 && combatState.turn >= combatState.combatants.length) {
                 combatState.turn = 0; 
             } else if (combatState.combatants.length === 0) {
                 combatState.turn = 0;
             }
-            
+            combatState.markModified('combatants');
             await combatState.save();
             io.emit('combat:update', combatState);
         }
@@ -475,27 +472,35 @@ io.on('connection', (socket) => {
     });
 
     socket.on('combat:set_target', async ({ targetId }) => {
-        if (!combatState || !combatState.isActive) return;
-
-        const currentTurnCombatant = combatState.combatants[combatState.turn];
+        if (!socket.isGm && !(currentCombatState && currentCombatState.isActive && currentCombatState.combatants[currentCombatState.turn]?.characterId?.toString() === socket.characterId)) return;
+    
+        const currentTurnCombatant = currentCombatState.combatants[currentCombatState.turn];
         if (!currentTurnCombatant) return;
-        
-        const isMyTurn = currentTurnCombatant.characterId === socket.characterId;
-        if (!socket.isGm && !isMyTurn) return;
-
+    
         if (currentTurnCombatant.targetId === targetId) {
             currentTurnCombatant.targetId = null;
             currentTurnCombatant.targetName = null;
         } else {
-            const targetCombatant = combatState.combatants.find(c => c._id.toString() === targetId);
-            if (targetCombatant) {
-                currentTurnCombatant.targetId = targetId;
-                currentTurnCombatant.targetName = targetCombatant.name;
+            const targetIdToFind = currentCombatState.combatants.find(c => (c.characterId || c._id).toString() === targetId);
+            if (targetIdToFind) {
+                currentTurnCombatant.targetId = (targetIdToFind.characterId || targetIdToFind._id).toString();
+                currentTurnCombatant.targetName = targetIdToFind.name;
             }
         }
-
         combatState.markModified('combatants');
         await combatState.save();
         io.emit('combat:update', combatState);
+    });
+
+    socket.on('combat:update_hp', async ({ combatantId, newHp }) => {
+        if (!socket.isGm) return;
+        if (!combatState || !combatState.isActive) return;
+        const combatant = combatState.combatants.find(c => c._id.toString() === combatantId);
+        if (combatant) {
+            combatant.currentHp = newHp;
+            combatState.markModified('combatants');
+            await combatState.save();
+            io.emit('combat:update', combatState);
+        }
     });
 });

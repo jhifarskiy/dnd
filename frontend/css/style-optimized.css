@@ -1,0 +1,161 @@
+/* === Глобальные переменные и сброс стилей === */
+:root {
+    --bg-primary: #2A3447;
+    --bg-secondary: #1B202E;
+    --bg-dark-secondary: #1B202E;
+    --bg-light-accent: #3A4553;
+    --bg-transparent: rgba(42, 52, 71, 0.8);
+    
+    --text-primary: #FFFFFF;
+    --text-secondary: #B0B8C4;
+    --text-muted: #6B7280;
+    
+    --accent-primary: #3B82F6;
+    --accent-primary-rgb: 59, 130, 246;
+    --accent-secondary: #10B981;
+    --accent-danger: #EF4444;
+    --accent-danger-hover: #DC2626;
+    --accent-warning: #F59E0B;
+    
+    --border-color: #4B5563;
+    --border-radius-small: 8px;
+    --border-radius-medium: 12px;
+    --border-radius-large: 16px;
+    
+    --transition-speed: 0.2s;
+    --box-shadow-light: 0 2px 4px rgba(0, 0, 0, 0.1);
+    --box-shadow-medium: 0 4px 12px rgba(0, 0, 0, 0.15);
+    --box-shadow-heavy: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.6;
+    overflow: hidden;
+    font-size: 14px;
+}
+
+input, textarea, button, select {
+    font-family: inherit;
+    font-size: inherit;
+    color: inherit;
+}
+
+button {
+    cursor: pointer;
+    border: none;
+    background: none;
+    transition: all var(--transition-speed) ease;
+}
+
+input:focus, textarea:focus, button:focus {
+    outline: none;
+}
+
+/* Утилитарные классы */
+.hidden { display: none !important; }
+
+/* === Стили АУТЕНТИФИКАЦИИ === */
+.auth-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.auth-form-container {
+    background: var(--bg-secondary);
+    padding: 2rem;
+    border-radius: var(--border-radius-large);
+    box-shadow: var(--box-shadow-heavy);
+    width: 400px;
+    max-width: 90vw;
+}
+
+.auth-form-container form { display: flex; flex-direction: column; gap: 1rem; }
+.auth-form-container h2 { text-align: center; margin-bottom: 1rem; color: var(--text-primary); font-size: 1.5rem; font-weight: 600; }
+
+.auth-form-container input {
+    padding: 0.75rem;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-small);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    transition: border-color var(--transition-speed) ease;
+}
+
+.auth-form-container input:focus { border-color: var(--accent-primary); }
+
+.auth-form-container button {
+    padding: 0.75rem;
+    background: var(--accent-primary);
+    color: white;
+    border-radius: var(--border-radius-small);
+    font-weight: 600;
+}
+
+.auth-form-container p { text-align: center; color: var(--text-secondary); }
+.auth-form-container a { color: var(--accent-primary); text-decoration: none; }
+.auth-form-container a:hover { text-decoration: underline; }
+
+.auth-message {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--accent-danger);
+    color: white;
+    padding: 12px 24px;
+    border-radius: var(--border-radius-small);
+    z-index: 1001;
+}
+
+/* === ОСНОВНЫЕ СТИЛИ ПРИЛОЖЕНИЯ === */
+.sidebar {
+    width: 300px;
+    background: var(--bg-secondary);
+    border-right: 1px solid var(--border-color);
+    overflow-y: auto;
+}
+
+.main-content {
+    flex: 1;
+    background: var(--bg-primary);
+    position: relative;
+    overflow: hidden;
+}
+
+.sidebar-panel {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-medium);
+    margin: 15px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 30px);
+}
+
+.sidebar-panel h3 {
+    background: var(--bg-light-accent);
+    padding: 15px;
+    margin: 0;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+}

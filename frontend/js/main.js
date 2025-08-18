@@ -1,6 +1,10 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const BACKEND_URL = ''; // Оставляем пустым для работы на одном домене
-    let socket = io(BACKEND_URL);
+    const BACKEND_URL = '';
+    let socket = io(BACKEND_URL, {
+        auth: {
+            token: localStorage.getItem('token')
+        }
+    });
 
     // --- DOM Элементы ---
     const authContainer = document.getElementById('auth-container');
@@ -8,19 +12,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const registerForm = document.getElementById('register-form');
     const showRegisterLink = document.getElementById('showRegister');
     const showLoginLink = document.getElementById('showLogin');
-    const loginBtn = document.getElementById('loginBtn');
-    const registerBtn = document.getElementById('registerBtn');
     const authMessage = document.getElementById('authMessage');
     const mainAppContainer = document.getElementById('main-app');
     const logoutBtn = document.getElementById('logoutBtn');
     const usernameDisplay = document.getElementById('usernameDisplay');
-    const battleMapCanvas = document.getElementById('battleMap');
-    const ctx = battleMapCanvas.getContext('2d');
-    const gridSizeInput = document.getElementById('gridSize');
-    const mapBackgroundInput = document.getElementById('mapBackground');
-    const loadMapBackgroundBtn = document.getElementById('loadMapBackground');
+    const mainCanvas = document.getElementById('mainCanvas');
+    const ctx = mainCanvas.getContext('2d');
+    const mapToolbar = document.getElementById('map-toolbar');
     const characterManagerPanel = document.getElementById('character-manager');
-    const characterSelector = document.getElementById('characterSelector');
+    
+    // --- ИЗМЕНЕНО: Элементы для кастомного селекта ---
+    const characterSelectorWrapper = document.querySelector('.custom-select-wrapper');
+    const characterSelectorTrigger = document.getElementById('characterSelectorTrigger');
+    const characterSelectorOptions = document.getElementById('characterSelectorOptions');
+    
     const loadCharacterBtn = document.getElementById('loadCharacterBtn');
     const newCharacterBtn = document.getElementById('newCharacterBtn');
     const deleteCharacterBtn = document.getElementById('deleteCharacterBtn');
@@ -41,11 +46,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const sheetModal = document.getElementById('sheet-modal');
     const closeSheetBtn = document.getElementById('close-sheet-btn');
     const sheetContainer = document.getElementById('character-sheet-container');
-    
-    // НОВЫЕ DOM ЭЛЕМЕНТЫ
-    const attacksForCombat = document.getElementById('attacks-for-combat');
-    const spellsForCombat = document.getElementById('spells-for-combat');
-    const equipmentForCombat = document.getElementById('equipment-for-combat');
+    const npcMaxHpInput = document.getElementById('npcMaxHpInput');
+    const npcACInput = document.getElementById('npcACInput');
+    const actionBar = document.getElementById('action-bar');
+    const worldMapGmControls = document.getElementById('world-map-gm-controls');
+    const worldMapBackgroundUrlInput = document.getElementById('worldMapBackgroundUrl');
+    const saveWorldMapBtn = document.getElementById('saveWorldMapBtn');
+    // --- DOM Элементы для модального окна описания ---
+    const itemInfoModal = document.getElementById('item-info-modal');
+    const closeInfoModalBtn = document.querySelector('.close-info-modal-btn');
+    const infoModalTitle = document.getElementById('info-modal-title');
+    const infoModalDescription = document.getElementById('info-modal-description');
+
 
     // --- Состояние приложения ---
     let userData = { token: null, userId: null, username: null };
@@ -53,149 +65,614 @@ document.addEventListener('DOMContentLoaded', () => {
     let activeCharacterId = null;
     let currentCharacterData = {};
     let currentCombatState = null;
-    let mapData = { gridSize: 50, backgroundUrl: '', backgroundImage: null, characters: [] };
     let selectedCharacterForMove = null;
-    let hoveredCell = null;
-    let animationFrameId = null;
+    let mousePreviewPosition = null;
+    let animatingTokens = new Set(); // Для отслеживания анимирующихся токенов
+    let hoveredObject = null;
     let sheetUpdateTimeout = null;
-    let selectedCombatAction = null; // Новое поле для хранения выбранной атаки/заклинания
+    let selectedCombatAction = null;
+    let activeActionTab = 'attacks';
+
+    // --- Состояние для нового виджета атак/заклинаний ---
+    let activeSpellLevel = 1;
+    let activeFilter = 'attacks';
+    let editingItemIndex = null; // null для добавления, index для редактирования
+
+    // --- Состояние для глобальной карты ---
+    let worldMapState = {
+        image: null,
+        imageUrl: '',
+        characters: []
+    };
+    let viewTransform = {
+        scale: 0.5,
+        offsetX: 0,
+        offsetY: 0
+    };
+    let isPanning = false;
+    let lastMousePos = { x: 0, y: 0 };
+    let mouseHasMoved = false;
+    const MIN_ZOOM = 0.1;
+    const MAX_ZOOM = 3.0;
+
+    // --- Константы для отрисовки ---
+    const TOKEN_RADIUS = 20;
 
     // --- СПИСКИ ДАННЫХ ДЛЯ ГЕНЕРАЦИИ ЛИСТА ---
-    const ABILITIES = {
-        strength: 'СИЛА',
-        dexterity: 'ЛОВКОСТЬ',
-        constitution: 'ТЕЛОСЛОЖЕНИЕ',
-        intelligence: 'ИНТЕЛЛЕКТ',
-        wisdom: 'МУДРОСТЬ',
-        charisma: 'ХАРИЗМА'
-    };
+    const ABILITIES = { strength: 'СИЛА', dexterity: 'ЛОВКОСТЬ', constitution: 'ТЕЛОСЛОЖЕНИЕ', intelligence: 'ИНТЕЛЛЕКТ', wisdom: 'МУДРОСТЬ', charisma: 'ХАРИЗМА' };
+    const SKILLS = { acrobatics: { label: 'Акробатика', ability: 'dexterity' }, animalHandling: { label: 'Уход за животными', ability: 'wisdom' }, arcana: { label: 'Магия', ability: 'intelligence' }, athletics: { label: 'Атлетика', ability: 'strength' }, deception: { label: 'Обман', ability: 'charisma' }, history: { label: 'История', ability: 'intelligence' }, insight: { label: 'Проницательность', ability: 'wisdom' }, intimidation: { label: 'Запугивание', ability: 'charisma' }, investigation: { label: 'Анализ', ability: 'intelligence' }, medicine: { label: 'Медицина', ability: 'wisdom' }, nature: { label: 'Природа', ability: 'intelligence' }, perception: { label: 'Внимательность', ability: 'wisdom' }, performance: { label: 'Выступление', ability: 'charisma' }, persuasion: { label: 'Убеждение', ability: 'charisma' }, religion: { label: 'Религия', ability: 'intelligence' }, sleightOfHand: { label: 'Ловкость рук', ability: 'dexterity' }, stealth: { label: 'Скрытность', ability: 'dexterity' }, survival: { label: 'Выживание', ability: 'wisdom' } };
 
-    const SKILLS = {
-        acrobatics: { label: 'Акробатика', ability: 'dexterity' },
-        animalHandling: { label: 'Уход за животными', ability: 'wisdom' },
-        arcana: { label: 'Магия', ability: 'intelligence' },
-        athletics: { label: 'Атлетика', ability: 'strength' },
-        deception: { label: 'Обман', ability: 'charisma' },
-        history: { label: 'История', ability: 'intelligence' },
-        insight: { label: 'Проницательность', ability: 'wisdom' },
-        intimidation: { label: 'Запугивание', ability: 'charisma' },
-        investigation: { label: 'Анализ', ability: 'intelligence' },
-        medicine: { label: 'Медицина', ability: 'wisdom' },
-        nature: { label: 'Природа', ability: 'intelligence' },
-        perception: { label: 'Внимательность', ability: 'wisdom' },
-        performance: { label: 'Выступление', ability: 'charisma' },
-        persuasion: { label: 'Убеждение', ability: 'charisma' },
-        religion: { label: 'Религия', ability: 'intelligence' },
-        sleightOfHand: { label: 'Ловкость рук', ability: 'dexterity' },
-        stealth: { label: 'Скрытность', ability: 'dexterity' },
-        survival: { label: 'Выживание', ability: 'wisdom' }
-    };
+    // ===================================================================
+    // === НОВАЯ ЛОГИКА ДЛЯ ИНТЕРАКТИВНОГО БЛОКА АТАК И ЗАКЛИНАНИЙ (V5) ===
+    // ===================================================================
+    function populateAttacksAndSpellsV5(sheet, charData) {
+        const container = sheet.querySelector('.cs-attacks-v5');
+        if (!container) return;
 
-    // --- ГЕНЕРАЦИЯ HTML ЛИСТА ПЕРСОНАЖА ---
-    function getCharacterSheetHTML(readonly = false) {
-        const abilitiesHTML = Object.entries(ABILITIES).map(([key, label]) => `
-            <div class="ability-score">
-                <span class="label">${label}</span>
-                <input type="text" data-field="${key}Modifier" class="modifier-input" readonly>
-                <input type="number" data-field="${key}" class="score-input char-sheet-input" ${readonly ? 'readonly' : ''}>
-            </div>
-        `).join('');
+        const list = container.querySelector('.cs-attacks-spell-list');
+        list.innerHTML = ''; // Очищаем список перед отрисовкой
 
-        const savingThrowsHTML = Object.entries(ABILITIES).map(([key, label]) => `
-             <li class="skill-item">
-                <input type="checkbox" data-field="${key}SaveProficient" class="char-sheet-input proficient-checkbox" ${readonly ? 'disabled' : ''}>
-                <span class="skill-bonus" data-field="${key}Save" readonly>+0</span>
-                <span class="skill-label">${label}</span>
-            </li>
-        `).join('');
+        let itemsToShow = [];
 
-        const skillsHTML = Object.entries(SKILLS).map(([key, {label, ability}]) => `
-            <li class="skill-item">
-                <input type="checkbox" data-field="${key}Proficient" class="char-sheet-input proficient-checkbox" ${readonly ? 'disabled' : ''}>
-                <span class="skill-bonus" data-field="${key}" readonly>+0</span>
-                <span class="skill-label">${label} <span class="skill-ability">(${ABILITIES[ability].slice(0,3)})</span></span>
-            </li>
-        `).join('');
+        if (activeFilter === 'attacks') {
+            itemsToShow = (charData.attacks || []).map((item, index) => ({ ...item, type: 'attack', originalIndex: index }));
+        } else {
+            const spellList = (charData.spells || []).map((item, index) => ({ ...item, type: 'spell', originalIndex: index }));
+            if (activeFilter === 'cantrips') {
+                itemsToShow = spellList.filter(s => s.level === '0' || s.level === 0 || s.level?.toLowerCase() === 'заговор');
+            } else if (activeFilter === 'spells') {
+                itemsToShow = spellList.filter(s => s.level == activeSpellLevel);
+            }
+        }
 
-        return `
-        <div class="character-sheet">
-            <header class="sheet-header">
-                <div class="header-section char-name-section">
-                    <input type="text" data-field="name" class="char-sheet-input" id="characterName" placeholder="Имя персонажа" ${readonly ? 'readonly' : ''}>
+        itemsToShow.forEach(item => {
+            const li = document.createElement('li');
+            li.className = 'attack-spell-item';
+            li.dataset.index = item.originalIndex;
+            li.dataset.type = item.type;
+
+            const stats = [];
+            if (item.bonus) stats.push(`БА: ${item.bonus}`);
+            if (item.damage) stats.push(item.damage);
+            if (item.damageType) stats.push(item.damageType);
+
+            li.innerHTML = `
+                <div class="item-main-info">
+                    <input type="checkbox" class="item-prepared-checkbox" title="Подготовлено" ${item.prepared ? 'checked' : ''} ${item.type === 'attack' ? 'style="visibility: hidden;"' : ''}>
+                    <span class="item-name">${item.name || 'Без названия'}</span>
+                    <div class="item-description-marquee">
+                        <span class="marquee-text">${item.description || ''}</span>
+                    </div>
+                    <span class="item-stats">${stats.join(', ')}</span>
+                    <button class="item-info-btn" title="Показать описание">
+                        <img src="img/icons/info.svg" alt="Инфо" style="width: 12px; height: 12px;">
+                    </button>
+                    <button class="item-delete-btn" title="Удалить элемент">×</button>
                 </div>
-                 <div class="header-info-grid">
-                    <div class="header-section"><span class="label">КЛАСС И УРОВЕНЬ</span><input type="text" data-field="classLevel" class="char-sheet-input" ${readonly ? 'readonly' : ''}></div>
-                    <div class="header-section"><span class="label">ПРЕДЫСТОРИЯ</span><input type="text" data-field="background" class="char-sheet-input" ${readonly ? 'readonly' : ''}></div>
-                    <div class="header-section"><span class="label">ИМЯ ИГРОКА</span><input type="text" data-field="playerName" class="char-sheet-input" readonly></div>
-                    <div class="header-section"><span class="label">РАСА</span><input type="text" data-field="race" class="char-sheet-input" ${readonly ? 'readonly' : ''}></div>
-                    <div class="header-section"><span class="label">МИРОВОЗЗРЕНИЕ</span><input type="text" data-field="alignment" class="char-sheet-input" ${readonly ? 'readonly' : ''}></div>
-                    <div class="header-section"><span class="label">ОПЫТ</span><input type="number" data-field="experience" class="char-sheet-input" ${readonly ? 'readonly' : ''}></div>
-                </div>
-            </header>
+                <div class="item-description hidden">
+                    <p>${item.description || ''}</p>
+                </div>`;
+            list.appendChild(li);
+        });
 
-            <main class="sheet-main">
-                <div class="main-column-left">
-                    <div class="abilities-section">${abilitiesHTML}</div>
-                    <div class="sub-column">
-                        <div class="proficiency-bonus-section">
-                            <input type="number" data-field="proficiencyBonus" class="char-sheet-input" ${readonly ? 'readonly' : ''}>
-                            <span class="label">БОНУС МАСТЕРСТВА</span>
-                        </div>
-                        <div class="saving-throws-section">
-                            <h3>СПАСБРОСКИ</h3>
-                            <ul>${savingThrowsHTML}</ul>
-                        </div>
-                    </div>
-                    <div class="skills-section">
-                        <h3>НАВЫКИ</h3>
-                        <ul>${skillsHTML}</ul>
-                    </div>
-                </div>
-                <div class="main-column-center">
-                    <div class="combat-stats-section">
-                         <div class="combat-stat"><span class="label">КЛАСС БРОНИ</span><input type="number" data-field="ac" class="char-sheet-input" ${readonly ? 'readonly' : ''}></div>
-                         <div class="combat-stat"><span class="label">ИНИЦИАТИВА</span><input type="text" data-field="initiative" class="char-sheet-input" readonly></div>
-                         <div class="combat-stat"><span class="label">СКОРОСТЬ</span><input type="text" data-field="speed" class="char-sheet-input" ${readonly ? 'readonly' : ''}></div>
-                    </div>
-                     <div class="hp-section">
-                        <div class="hp-max"><span class="label">Максимум хитов</span><input type="number" data-field="maxHp" class="char-sheet-input" ${readonly ? 'readonly' : ''}></div>
-                        <div class="hp-current"><span class="label">ТЕКУЩИЕ ХИТЫ</span><input type="number" data-field="currentHp" class="char-sheet-input" ${readonly ? 'readonly' : ''}></div>
-                        <div class="hp-temp"><span class="label">Временные хиты</span><input type="number" data-field="tempHp" class="char-sheet-input" ${readonly ? 'readonly' : ''}></div>
-                    </div>
-                    <div class="attacks-section">
-                        <h3>АТАКИ, ЗАКЛИНАНИЯ И ЗАГОВОРЫ</h3>
-                        <div id="attacks-list"></div>
-                        <button class="add-attack-btn" data-type="attack" ${readonly ? 'disabled' : ''}>Добавить атаку</button>
-                        <div id="spells-list"></div>
-                        <button class="add-spell-btn" data-type="spell" ${readonly ? 'disabled' : ''}>Добавить заклинание</button>
-                    </div>
-                </div>
-                <div class="main-column-right">
-                    <div class="features-section">
-                        <h3>УМЕНИЯ И ОСОБЕННОСТИ</h3>
-                        <textarea data-field="features" class="char-sheet-input" ${readonly ? 'readonly' : ''}></textarea>
-                    </div>
-                    <div class="equipment-section">
-                         <h3>СНАРЯЖЕНИЕ</h3>
-                        <textarea data-field="equipment" class="char-sheet-input" ${readonly ? 'readonly' : ''}></textarea>
-                    </div>
-                </div>
-            </main>
-        </div>
-        `;
+        // Проверяем какие тексты нуждаются в анимации
+        setTimeout(() => {
+            const marqueeElements = list.querySelectorAll('.marquee-text');
+            marqueeElements.forEach(marquee => {
+                const container = marquee.closest('.item-description-marquee');
+                if (marquee.scrollWidth > container.clientWidth) {
+                    marquee.classList.add('long-text');
+                } else {
+                    marquee.classList.remove('long-text');
+                }
+            });
+        }, 100);
     }
+
+    function setupAttacksAndSpellsEventListeners(sheet) {
+        const container = sheet.querySelector('.cs-attacks-v5');
+        if (!container) return;
+
+        const levelNav = container.querySelector('.cs-spell-level-nav');
+        const filters = container.querySelector('.cs-content-filters');
+        const contentList = container.querySelector('.cs-attacks-spell-list');
+        const addButton = container.querySelector('.add-new-attack-spell-btn');
+        const formContainer = container.querySelector('.attack-spell-form-container');
+        const form = formContainer.querySelector('.form-grid');
+        const formActions = formContainer.querySelector('.form-actions');
+
+        // --- Функция для очистки полей формы ---
+        function clearAttackSpellForm() {
+            formName.value = '';
+            formBonus.value = '';
+            formDamage.value = '';
+            formDamageType.value = '';
+            formRange.value = '';
+            formSaveType.value = '';
+            formDescription.value = '';
+            formPrepared.checked = false;
+        }
+
+        // --- Получаем ссылки на все поля формы ---
+        const formName = form.querySelector('input[placeholder="Название"]');
+        const formBonus = form.querySelector('input[placeholder="Бонус атаки"]');
+        const formDamage = form.querySelector('input[placeholder="Урон"]');
+        const formDamageType = form.querySelector('input[placeholder="Тип урона"]');
+        const formRange = form.querySelector('input[placeholder="Дальность"]');
+        const formSaveType = form.querySelector('input[placeholder="Тип спасброска"]');
+        const formDescription = formContainer.querySelector('textarea[placeholder="Описание..."]');
+        const formPrepared = formContainer.querySelector('input[type="checkbox"]');
+
+        // Навигация по уровням
+        levelNav.addEventListener('click', e => {
+            if (e.target.classList.contains('cs-level-nav-btn')) {
+                levelNav.querySelector('.active')?.classList.remove('active');
+                e.target.classList.add('active');
+                activeSpellLevel = e.target.dataset.level;
+                // Автоматически переключаемся на заклинания при выборе уровня
+                filters.querySelector('.active')?.classList.remove('active');
+                filters.querySelector('[data-filter="spells"]').classList.add('active');
+                activeFilter = 'spells';
+                populateAttacksAndSpellsV5(sheet, currentCharacterData);
+            }
+        });
+
+        // Фильтры
+        filters.addEventListener('click', e => {
+            if (e.target.classList.contains('cs-filter-btn')) {
+                filters.querySelector('.active')?.classList.remove('active');
+                e.target.classList.add('active');
+                activeFilter = e.target.dataset.filter;
+                populateAttacksAndSpellsV5(sheet, currentCharacterData);
+            }
+        });
+
+        // Кнопка "+ Добавить"
+        addButton.addEventListener('click', () => {
+            editingItemIndex = null; // Режим добавления
+            clearAttackSpellForm(); // Очищаем форму для нового элемента
+            formContainer.classList.remove('hidden');
+            formContainer.dataset.type = activeFilter === 'attacks' ? 'attack' : 'spell';
+        });
+
+        // Кнопки в форме
+        // Кнопки в форме
+        formActions.addEventListener('click', e => {
+            if (e.target.classList.contains('form-cancel-btn')) {
+                formContainer.classList.add('hidden');
+            }
+            if (e.target.classList.contains('form-save-btn')) {
+                // 1. Собираем данные из полей
+                const newItem = {
+                    name: formName.value,
+                    bonus: formBonus.value,
+                    damage: formDamage.value,
+                    damageType: formDamageType.value,
+                    range: formRange.value,
+                    save: formSaveType.value, // Для заклинаний
+                    description: formDescription.value,
+                    prepared: formPrepared.checked,
+                    // Для совместимости со старыми данными
+                    attackBonus: formBonus.value
+                };
+
+                const type = formContainer.dataset.type;
+
+                // 2. Добавляем в нужный массив
+                if (type === 'attack') {
+                    if (!currentCharacterData.attacks) currentCharacterData.attacks = [];
+                    currentCharacterData.attacks.push(newItem);
+                } else { // spell or cantrip
+                    if (!currentCharacterData.spells) currentCharacterData.spells = [];
+                    // Определяем уровень заклинания
+                    if (activeFilter === 'cantrips') {
+                        newItem.level = '0';
+                    } else {
+                        newItem.level = activeSpellLevel;
+                    }
+                    currentCharacterData.spells.push(newItem);
+                }
+
+                // 3. Обновляем интерфейс и сохраняем
+                populateAttacksAndSpellsV5(sheet, currentCharacterData);
+                formContainer.classList.add('hidden');
+                saveSheetData(); // Сохраняем все данные листа
+            }
+        });
+
+        // Клик по элементам в списке (инфо, чекбокс, удаление)
+        contentList.addEventListener('click', e => {
+            const itemElement = e.target.closest('.attack-spell-item');
+            if (!itemElement) return;
+
+            const type = itemElement.dataset.type;
+            const index = parseInt(itemElement.dataset.index, 10);
+
+            // Кнопка "Инфо"
+            if (e.target.classList.contains('item-info-btn') || e.target.closest('.item-info-btn')) {
+                const description = itemElement.querySelector('.item-description p')?.textContent;
+                const name = itemElement.querySelector('.item-name').textContent;
+                infoModalTitle.textContent = name;
+                infoModalDescription.textContent = description || 'Описание отсутствует.';
+                itemInfoModal.classList.remove('hidden');
+            }
+
+            // Кнопка "Удалить"
+            if (e.target.classList.contains('item-delete-btn')) {
+                const name = itemElement.querySelector('.item-name').textContent;
+                if (confirm(`Вы уверены, что хотите удалить "${name}"?`)) {
+                    if (type === 'attack' && currentCharacterData.attacks) {
+                        currentCharacterData.attacks.splice(index, 1);
+                    } else if (type === 'spell' && currentCharacterData.spells) {
+                        currentCharacterData.spells.splice(index, 1);
+                    }
+                    populateAttacksAndSpellsV5(sheet, currentCharacterData);
+                    saveSheetData();
+                }
+            }
+
+            // Чекбокс "Подготовлено"
+            if (e.target.classList.contains('item-prepared-checkbox')) {
+                if (type === 'spell' && currentCharacterData.spells[index]) {
+                    currentCharacterData.spells[index].prepared = e.target.checked;
+                    saveSheetData();
+                }
+            }
+        });
+    }
+
+    if (closeInfoModalBtn) {
+        closeInfoModalBtn.addEventListener('click', () => itemInfoModal.classList.add('hidden'));
+        itemInfoModal.addEventListener('click', (e) => {
+            if (e.target === itemInfoModal) {
+                itemInfoModal.classList.add('hidden');
+            }
+        });
+    }
+
+    // ===================================================================
+    // === КОНЕЦ НОВОЙ ЛОГИКИ V5                                       ===
+    // ===================================================================
+
+
+    function handleCombatAction(action, targetChar) {
+        if (!action || !targetChar) return;
+        const allObjects = getVisibleObjects();
+        const targetId = targetChar._id;
+        const targetCombatant = allObjects.find(o => o._id === targetId);
+        const targetName = targetCombatant ? targetCombatant.name : '???';
+        const targetAC = targetCombatant?.ac || 10;
+        const attackRollCommand = `/roll 1d20${action.bonus}`;
+        sendLogMessage(`использует ${action.name} против ${targetName}. Бросок на попадание: ${attackRollCommand} vs AC ${targetAC}`);
+        if (action.damage) {
+            const damageRollCommand = `/roll ${action.damage}`;
+            sendLogMessage(`урон от ${action.name}: ${damageRollCommand} ${action.damageType || ''}`);
+        }
+    }
+
+    function renderActionBar(charData) {
+        if (!charData || !charData.name) {
+            actionBar.innerHTML = '';
+            actionBar.classList.add('hidden');
+            return;
+        }
+        actionBar.classList.remove('hidden');
+
+        // Создаем массив из 10 слотов
+        const totalSlots = 10;
+        let items = [];
+        let hotbarHTML = '';
+        
+        if (activeActionTab === 'attacks') {
+            items = charData.attacks || [];
+        } else if (activeActionTab === 'spells') {
+            items = (charData.spells || []).filter(spell => spell.prepared || spell.level === '0' || spell.level === 0);
+        } else if (activeActionTab === 'items') {
+            items = charData.equipmentList || [];
+        }
+
+        // Создаем слоты (заполненные + пустые)
+        for (let i = 0; i < totalSlots; i++) {
+            if (i < items.length) {
+                const item = items[i];
+                let buttonData = '';
+                let buttonText = item.name || 'Без названия';
+                
+                if (activeActionTab === 'attacks') {
+                    buttonData = `data-type="attack" data-name="${item.name}" data-bonus="${item.bonus || ''}" data-damage="${item.damage || ''}" data-damage-type="${item.damageType || ''}"`;
+                } else if (activeActionTab === 'spells') {
+                    buttonData = `data-type="spell" data-name="${item.name}" data-bonus="${item.attackBonus || ''}" data-damage="${item.damage || ''}" data-damage-type="${item.damageType || ''}" data-description="${item.description || ''}"`;
+                    if (item.level !== '0' && item.level !== 0) {
+                        buttonText += `<br><span style="font-size: 8px; opacity: 0.7;">${item.level} ур.</span>`;
+                    }
+                } else if (activeActionTab === 'items') {
+                    buttonData = `data-type="item" data-name="${item.name}"`;
+                    buttonText += `<br><span style="font-size: 8px; opacity: 0.7;">(${item.quantity || 1})</span>`;
+                }
+                
+                hotbarHTML += `<button class="hotbar-button" ${buttonData}>${buttonText}</button>`;
+            } else {
+                // Пустой слот
+                hotbarHTML += `<button class="hotbar-button" data-slot="${i}" data-empty="true"></button>`;
+            }
+        }
+
+        const isMyTurn = currentCombatState?.isActive && currentCombatState.combatants[currentCombatState.turn]?.characterId?.toString() === activeCharacterId;
+
+        actionBar.innerHTML = `
+        <div class="action-bar-section action-bar-left">
+            <div class="char-portrait" title="${charData.name}">
+                ${charData.name.charAt(0).toUpperCase()}
+            </div>
+        </div>
+        <div class="action-bar-section action-bar-center">
+            <div class="action-bar-top-row">
+                <button class="tab-button ${activeActionTab === 'attacks' ? 'active' : ''}" data-tab="attacks">Атаки</button>
+                <button class="tab-button ${activeActionTab === 'spells' ? 'active' : ''}" data-tab="spells">Заклинания</button>
+                <button class="tab-button ${activeActionTab === 'items' ? 'active' : ''}" data-tab="items">Предметы</button>
+                <button id="action-bar-end-turn" class="end-turn-button ${!isMyTurn && !isGm ? 'disabled' : ''}" title="Завершить ход">
+                    Завершить Ход
+                </button>
+            </div>
+            <div class="hotbar-grid">${hotbarHTML}</div>
+        </div>`;
+    }
+
+    function populateSheet(charData) {
+        const sheet = sheetContainer.querySelector('.cs-container');
+        if (!sheet) return;
+
+        sheet.querySelectorAll('.char-sheet-input').forEach(input => {
+            const field = input.dataset.field;
+            const group = input.dataset.group;
+            if (!field) return;
+
+            let value;
+            if (group) {
+                value = charData[group] ? charData[group][field] : undefined;
+            } else {
+                value = charData[field];
+            }
+
+            if (input.type === 'checkbox') {
+                if (group !== 'deathSaves') {
+                    input.checked = !!value;
+                }
+            } else {
+                input.value = (value !== undefined && value !== null) ? value : (input.type === 'number' ? '' : '');
+            }
+        });
+
+        if (charData.deathSaves) {
+            sheet.querySelectorAll('input[data-group="deathSaves"][data-field="successes"]').forEach((cb, i) => {
+                cb.checked = i < charData.deathSaves.successes;
+            });
+            sheet.querySelectorAll('input[data-group="deathSaves"][data-field="failures"]').forEach((cb, i) => {
+                cb.checked = i < charData.deathSaves.failures;
+            });
+        }
+
+        const playerNameInputs = sheet.querySelectorAll('[data-field="playerName"]');
+        if (playerNameInputs) {
+            playerNameInputs.forEach(input => input.value = charData.playerName || userData.username);
+        }
+
+        const nameInputs = sheet.querySelectorAll('[data-field="name"]');
+        if (nameInputs) {
+            nameInputs.forEach(input => input.value = charData.name || '');
+        }
+
+        updateCalculatedFields(sheet, charData);
+        populateAttacksAndSpellsV5(sheet, charData); // <--- ИСПОЛЬЗУЕМ НОВУЮ ФУНКЦИЮ
+        setupAttacksAndSpellsEventListeners(sheet); // <--- ВЫЗЫВАЕМ НАСТРОЙКУ ОБРАБОТЧИКОВ
+        populateEquipment(sheet, charData);
+    }
+
+    /* СТАРАЯ ФУНКЦИЯ populateAttacksAndSpells ЗАКОММЕНТИРОВАНА, ТАК КАК ЗАМЕНЕНА НА V5
+    function populateAttacksAndSpells(sheet, charData) {
+        // ... старый код ...
+    }
+    */
+
+    function addAttack(parent) {
+        if (!currentCharacterData.attacks) currentCharacterData.attacks = [];
+        currentCharacterData.attacks.push({ name: '', bonus: '', damage: '', damageType: '' });
+        populateAttacksAndSpellsV5(sheetContainer.querySelector('.cs-container'), currentCharacterData);
+        saveSheetData();
+    }
+
+    function removeAttack(index) {
+        currentCharacterData.attacks?.splice(index, 1);
+        populateAttacksAndSpellsV5(sheetContainer.querySelector('.cs-container'), currentCharacterData);
+        saveSheetData();
+    }
+
+    function addSpell() {
+        if (!currentCharacterData.spells) currentCharacterData.spells = [];
+        currentCharacterData.spells.push({ name: '', level: '0', attackBonus: '', damage: '', damageType: '', description: '' });
+        populateAttacksAndSpellsV5(sheetContainer.querySelector('.cs-container'), currentCharacterData);
+        saveSheetData();
+    }
+
+    function removeSpell(index) {
+        currentCharacterData.spells?.splice(index, 1);
+        populateAttacksAndSpellsV5(sheetContainer.querySelector('.cs-container'), currentCharacterData);
+        saveSheetData();
+    }
+
+    function populateEquipment(sheet, charData) {
+        const equipmentList = sheet.querySelector('#equipment-list');
+        if (!equipmentList) return;
+        equipmentList.innerHTML = '';
+        if (Array.isArray(charData.equipmentList) && charData.equipmentList.length > 0) {
+            charData.equipmentList.forEach((item, index) => {
+                const li = document.createElement('li');
+                li.className = 'equipment-item';
+                li.dataset.index = index;
+                li.innerHTML = `<span>${item.name} (${item.quantity})</span><button class="remove-equipment-btn">&times;</button>`;
+                equipmentList.appendChild(li);
+            });
+        }
+    }
+
+    function addEquipment(item) {
+        if (!currentCharacterData.equipmentList) currentCharacterData.equipmentList = [];
+        currentCharacterData.equipmentList.push(item);
+        populateEquipment(sheetContainer.querySelector('.cs-container'), currentCharacterData);
+        saveSheetData();
+    }
+
+    function removeEquipment(index) {
+        if (!currentCharacterData.equipmentList) return;
+        currentCharacterData.equipmentList.splice(index, 1);
+        populateEquipment(sheetContainer.querySelector('.cs-container'), currentCharacterData);
+        saveSheetData();
+    }
+
+    function updateCalculatedFields(sheet, charData) {
+        if (!sheet || !charData) return;
+        const proficiencyBonus = parseInt(charData.proficiencyBonus) || 0;
+
+        let abilitiesModifiers = {};
+
+        for (const key in ABILITIES) {
+            const score = parseInt(charData[key]) || 10;
+            const modifier = Math.floor((score - 10) / 2);
+            abilitiesModifiers[key] = modifier;
+            const modString = modifier >= 0 ? `+${modifier}` : modifier;
+            const modifierInput = sheet.querySelector(`[data-field="${key}Modifier"]`);
+            if (modifierInput) modifierInput.value = modString;
+
+            const saveProficient = charData[`${key}SaveProficient`];
+            const saveBonus = modifier + (saveProficient ? proficiencyBonus : 0);
+            const saveBonusString = saveBonus >= 0 ? `+${saveBonus}` : saveBonus;
+            const saveBonusSpan = sheet.querySelector(`[data-field="${key}Save"]`);
+            if (saveBonusSpan) saveBonusSpan.textContent = saveBonusString;
+        }
+
+        const initiativeInput = sheet.querySelector('[data-field="initiative"]');
+        if (initiativeInput) {
+            const dexModifier = abilitiesModifiers['dexterity'];
+            initiativeInput.value = dexModifier >= 0 ? `+${dexModifier}` : dexModifier;
+        }
+
+        for (const key in SKILLS) {
+            const skill = SKILLS[key];
+            const abilityModifier = abilitiesModifiers[skill.ability];
+            const isProficient = charData[`${key}Proficient`];
+            const skillBonus = abilityModifier + (isProficient ? proficiencyBonus : 0);
+            const skillBonusString = skillBonus >= 0 ? `+${skillBonus}` : skillBonus;
+            const skillBonusSpan = sheet.querySelector(`.cs-skills-v2 span[data-field="${key}"]`);
+            if (skillBonusSpan) skillBonusSpan.textContent = skillBonusString;
+        }
+    }
+
+    async function saveSheetData() {
+        if (!activeCharacterId || isGm) return;
+        const sheet = sheetContainer.querySelector('.cs-container');
+        if (!sheet) return;
+
+        const dataToSave = { ...currentCharacterData };
+
+        sheet.querySelectorAll('.char-sheet-input').forEach(input => {
+            const field = input.dataset.field;
+            const group = input.dataset.group;
+            if (!field) return;
+
+            if (input.closest('.cs-attacks-v5')) return;
+
+            let value;
+            if (input.type === 'checkbox') {
+                if (group !== 'deathSaves') {
+                    value = input.checked;
+                } else { return; }
+            } else if (input.type === 'number') {
+                value = parseInt(input.value) || 0;
+            } else {
+                value = input.value;
+            }
+
+            if (group) {
+                if (!dataToSave[group]) dataToSave[group] = {};
+                dataToSave[group][field] = value;
+            } else {
+                dataToSave[field] = value;
+            }
+        });
+
+        dataToSave.deathSaves = {
+            successes: sheet.querySelectorAll('input[data-group="deathSaves"][data-field="successes"]:checked').length,
+            failures: sheet.querySelectorAll('input[data-group="deathSaves"][data-field="failures"]:checked').length
+        };
+
+        // Данные атак и заклинаний теперь управляются своей логикой,
+        // но они уже находятся в currentCharacterData, так что сохранятся.
+
+        dataToSave.equipmentList = [];
+        const equipmentItems = sheet.querySelectorAll('#equipment-list .equipment-item');
+        if (equipmentItems.length > 0) {
+            equipmentItems.forEach(item => {
+                const nameSpan = item.querySelector('span');
+                if (nameSpan) {
+                    const parts = nameSpan.textContent.match(/(.+) \((\d+)\)/);
+                    if (parts) {
+                        dataToSave.equipmentList.push({ name: parts[1], quantity: parseInt(parts[2]) });
+                    }
+                }
+            });
+        }
+
+        currentCharacterData = dataToSave;
+
+        updateCalculatedFields(sheet, currentCharacterData);
+        renderActionBar(currentCharacterData);
+
+        try {
+            await fetch(`${BACKEND_URL}/api/characters/${activeCharacterId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${userData.token}` },
+                body: JSON.stringify(dataToSave)
+            });
+            socket.emit('character:update', currentCharacterData);
+        } catch (error) {
+            console.error("Failed to save character sheet:", error);
+        }
+    }
+
+    sheetContainer.addEventListener('input', (e) => {
+        if (e.target.closest('.char-sheet-input')) {
+            // Исключаем инпуты из нового блока, они сохраняются по кнопке
+            if (e.target.closest('.cs-attacks-v5')) return;
+
+            clearTimeout(sheetUpdateTimeout);
+            sheetUpdateTimeout = setTimeout(saveSheetData, 500);
+        }
+    });
 
     // --- ЛОГИКА АУТЕНТИФИКАЦИИ ---
     function setupAuthEventListeners() {
-        showRegisterLink.addEventListener('click', (e) => { e.preventDefault(); loginForm.classList.add('hidden'); registerForm.classList.remove('hidden'); authMessage.textContent = ''; });
-        showLoginLink.addEventListener('click', (e) => { e.preventDefault(); registerForm.classList.add('hidden'); loginForm.classList.remove('hidden'); authMessage.textContent = ''; });
-
+        showRegisterLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            loginForm.classList.add('hidden');
+            registerForm.classList.remove('hidden');
+            authMessage.textContent = '';
+        });
+        showLoginLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            registerForm.classList.add('hidden');
+            loginForm.classList.remove('hidden');
+            authMessage.textContent = '';
+        });
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const username = document.getElementById('loginUsername').value;
             const password = document.getElementById('loginPassword').value;
             try {
-                const response = await fetch(`${BACKEND_URL}/api/auth/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
+                const response = await fetch(`${BACKEND_URL}/api/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
                 const data = await response.json();
                 if (response.ok) {
                     login(data);
@@ -203,15 +680,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     authMessage.textContent = data.message;
                     authMessage.style.color = 'var(--accent-danger)';
                 }
-            } catch (e) { authMessage.textContent = 'Ошибка сети'; }
+            } catch (e) {
+                authMessage.textContent = 'Ошибка сети';
+            }
         });
-
         registerForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const username = document.getElementById('registerUsername').value;
             const password = document.getElementById('registerPassword').value;
             try {
-                const response = await fetch(`${BACKEND_URL}/api/auth/register`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
+                const response = await fetch(`${BACKEND_URL}/api/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
                 const data = await response.json();
                 authMessage.textContent = data.message;
                 if (response.ok) {
@@ -222,16 +704,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     authMessage.style.color = 'var(--accent-danger)';
                 }
-            } catch (e) { authMessage.textContent = 'Ошибка сети'; }
+            } catch (e) {
+                authMessage.textContent = 'Ошибка сети';
+            }
         });
-
         logoutBtn.addEventListener('click', logout);
     }
 
     function login({ token, userId, username }) {
+        localStorage.setItem('token', token);
+        localStorage.setItem('userData', JSON.stringify({ token, userId, username }));
+        socket.auth.token = token;
+        socket.connect();
+
         userData = { token, userId, username };
-        localStorage.setItem('userData', JSON.stringify(userData));
-        
+
         if (username.toLowerCase() === 'gm') {
             isGm = true;
         }
@@ -240,13 +727,13 @@ document.addEventListener('DOMContentLoaded', () => {
         mainAppContainer.classList.remove('hidden');
         usernameDisplay.textContent = username;
         initializeApp();
-        
-        socket.emit('user:identify', { username: userData.username });
     }
 
     function logout() {
         userData = { token: null, userId: null, username: null };
         localStorage.removeItem('userData');
+        localStorage.removeItem('token');
+        localStorage.removeItem('activeCharacterId');
         window.location.reload();
     }
 
@@ -267,28 +754,32 @@ document.addEventListener('DOMContentLoaded', () => {
     function setupSocketListeners() {
         socket.on('connect', () => {
             console.log('Socket connected!');
-            if(userData.username) {
-                socket.emit('user:identify', { username: userData.username });
-            }
-            socket.emit('map:get');
-            socket.emit('combat:get');
         });
-        socket.on('map:update', (allCharacters) => {
-            allCharacters.forEach(serverChar => {
-                const localChar = mapData.characters.find(c => c._id === serverChar._id);
-                if (!localChar) {
-                    serverChar.spawnTime = performance.now();
-                    serverChar.currentX = serverChar.mapX || 100;
-                    serverChar.currentY = serverChar.mapY || 100;
+
+        socket.on('worldmap:update', (updatedCharacters) => {
+            // Интегрируем обновления, не затирая текущие позиции для плавной анимации
+            updatedCharacters.forEach(updatedChar => {
+                const existingChar = worldMapState.characters.find(c => c._id === updatedChar._id);
+                if (existingChar) {
+                    // Если персонаж анимируется, не обновляем его координаты
+                    if (!animatingTokens.has(updatedChar._id)) {
+                        Object.assign(existingChar, updatedChar);
+                    } else {
+                        // Обновляем только не-координатные данные
+                        const { worldMapX, worldMapY, ...otherData } = updatedChar;
+                        Object.assign(existingChar, otherData);
+                    }
                 } else {
-                    serverChar.spawnTime = localChar.spawnTime;
-                    serverChar.currentX = localChar.currentX;
-                    serverChar.currentY = localChar.currentY;
+                    // Если это новый персонаж, добавляем его
+                    worldMapState.characters.push(updatedChar);
                 }
             });
-            mapData.characters = allCharacters;
-            console.log('Map updated with characters:', mapData.characters);
         });
+
+        socket.on('worldmap:url_update', (newUrl) => {
+            loadWorldMapImage(newUrl);
+        });
+
         socket.on('log:new_message', (messageData) => {
             const messageElement = document.createElement('p');
             const prefix = messageData.charName ? `<strong>${messageData.charName}:</strong>` : '';
@@ -296,37 +787,55 @@ document.addEventListener('DOMContentLoaded', () => {
             eventLogDisplay.appendChild(messageElement);
             eventLogDisplay.scrollTop = eventLogDisplay.scrollHeight;
         });
+
         socket.on('combat:update', (newState) => {
             currentCombatState = newState;
             renderCombatTracker();
+            if (activeCharacterId) {
+                renderActionBar(currentCharacterData);
+            }
         });
-        socket.on('character:view', (charData) => {
-            sheetContainer.innerHTML = getCharacterSheetHTML(true);
-            populateSheet(charData);
-            sheetModal.classList.remove('hidden');
+
+        socket.on('character:view', async (charData) => {
+            try {
+                const response = await fetch('character-sheet.html');
+                if (!response.ok) throw new Error('Не удалось загрузить файл character-sheet.html');
+                const sheetHTML = await response.text();
+                sheetContainer.innerHTML = sheetHTML;
+                sheetContainer.querySelectorAll('.char-sheet-input').forEach(input => input.readOnly = true);
+                sheetContainer.querySelectorAll('button').forEach(btn => btn.disabled = true);
+                populateSheet(charData);
+                sheetModal.classList.remove('hidden');
+            } catch (error) {
+                console.error("Ошибка при просмотре персонажа:", error);
+            }
         });
     }
 
     // --- ЛОГИКА ПРИЛОЖЕНИЯ ---
     function initializeApp() {
-        loadCharacterBtn.textContent = 'Выбрать';
-        if (isGm) {
-            characterManagerPanel.classList.add('hidden');
-        } else {
-            characterManagerPanel.classList.remove('hidden');
-            createViewOthersButton();
-        }
-        createDiceRoller();
         resizeCanvas();
-        loadCharacterList();
-        loadMapData();
+        if (isGm) {
+            worldMapGmControls.classList.remove('hidden');
+        } else {
+            worldMapGmControls.classList.add('hidden');
+        }
+
+        setupDiceRoller();
+        // resizeCanvas();
+        loadCharacterList(); // Теперь восстановление персонажа происходит внутри этой функции
+        initializeWorldMap();
         setupMainEventListeners();
         setupSocketListeners();
         gameLoop();
     }
 
+    // --- Управление персонажами ---
     async function loadCharacterList() {
-        if(isGm) return;
+        if (isGm) {
+            if (characterManagerPanel) characterManagerPanel.classList.add('hidden');
+            return;
+        };
         try {
             const response = await fetch(`${BACKEND_URL}/api/characters`, { headers: { 'Authorization': `Bearer ${userData.token}` } });
             if (!response.ok) {
@@ -334,16 +843,43 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error('Failed to fetch characters');
             }
             const characters = await response.json();
-            characterSelector.innerHTML = '<option disabled selected>-- Выберите персонажа --</option>';
+            
+            if (characterSelectorOptions) {
+                characterSelectorOptions.innerHTML = ''; // Clear previous options
+            }
+            if (characterSelectorTrigger) {
+                characterSelectorTrigger.querySelector('span').textContent = '-- Выберите персонажа --'; // Reset trigger text
+            }
+            if(characterSelectorWrapper) {
+                characterSelectorWrapper.dataset.value = ''; // Reset selected value
+            }
+
             if (characters.length > 0) {
                 characters.forEach(char => {
-                    const option = document.createElement('option');
-                    option.value = char._id;
+                    const option = document.createElement('div');
+                    option.classList.add('custom-select-option');
+                    option.dataset.value = char._id;
                     option.textContent = char.name;
-                    characterSelector.appendChild(option);
+                    if (characterSelectorOptions) {
+                        characterSelectorOptions.appendChild(option);
+                    }
                 });
+                
+                // Автоматически восстанавливаем последнего выбранного персонажа
+                const savedCharacterId = localStorage.getItem('activeCharacterId');
+                if (savedCharacterId && !isGm && !activeCharacterId) {
+                    const savedCharExists = characters.find(char => char._id === savedCharacterId);
+                    if (savedCharExists) {
+                        loadCharacter(savedCharacterId);
+                    } else {
+                        // Если сохраненный персонаж не найден, очищаем localStorage
+                        localStorage.removeItem('activeCharacterId');
+                    }
+                }
             }
-        } catch (error) { console.error("Failed to load character list:", error); }
+        } catch (error) {
+            console.error("Failed to load character list:", error);
+        }
     }
 
     async function loadCharacter(id) {
@@ -353,25 +889,30 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!response.ok) throw new Error('Character not found');
             currentCharacterData = await response.json();
             activeCharacterId = id;
-            // Устанавливаем начальные координаты, если они отсутствуют
-            if (!currentCharacterData.mapX || !currentCharacterData.mapY) {
-                currentCharacterData.mapX = 100;
-                currentCharacterData.mapY = 100;
-                await fetch(`${BACKEND_URL}/api/characters/${id}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${userData.token}`
-                    },
-                    body: JSON.stringify({ mapX: 100, mapY: 100 })
-                });
-            }
-            socket.emit('character:join', currentCharacterData);
-            console.log('Character loaded:', currentCharacterData);
-            // НОВЫЕ ВЫЗОВЫ ФУНКЦИЙ
-            renderCombatActionsAndEquipment();
-            renderEquipment();
-        } catch (error) { console.error("Failed to load character:", error); }
+            
+            // Сохраняем ID активного персонажа в localStorage
+            localStorage.setItem('activeCharacterId', id);
+            
+            // Обновляем UI селектора персонажей
+            updateCharacterSelectorUI(currentCharacterData);
+            
+            socket.emit('character:update', currentCharacterData);
+            renderActionBar(currentCharacterData);
+        } catch (error) {
+            console.error("Failed to load character:", error);
+            // Если персонаж не найден, очищаем сохраненный ID
+            localStorage.removeItem('activeCharacterId');
+        }
+    }
+
+    // Функция для обновления UI селектора персонажей
+    function updateCharacterSelectorUI(characterData) {
+        if (characterSelectorWrapper) {
+            characterSelectorWrapper.dataset.value = characterData._id;
+        }
+        if (characterSelectorTrigger) {
+            characterSelectorTrigger.querySelector('span').textContent = characterData.name;
+        }
     }
 
     async function createNewCharacter() {
@@ -379,82 +920,60 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch(`${BACKEND_URL}/api/characters`, { method: 'POST', headers: { 'Authorization': `Bearer ${userData.token}` } });
             const newCharacter = await response.json();
             await loadCharacterList();
-            characterSelector.value = newCharacter._id;
+            
+            // Обновляем UI селектора с помощью новой функции
+            updateCharacterSelectorUI(newCharacter);
+            if (characterSelectorOptions) {
+                const newOption = characterSelectorOptions.querySelector(`[data-value="${newCharacter._id}"]`);
+                if(newOption) newOption.classList.add('selected');
+            }
+
             await loadCharacter(newCharacter._id);
-        } catch (error) { console.error("Failed to create character:", error); }
+
+            const mapResponse = await fetch(`${BACKEND_URL}/api/worldmap`, { headers: { 'Authorization': `Bearer ${userData.token}` } });
+            const data = await mapResponse.json();
+            worldMapState.characters = data.characters;
+        } catch (error) {
+            console.error("Failed to create character:", error);
+        }
     }
 
     async function deleteCharacter() {
-        const selectedId = characterSelector.value;
-        if (!selectedId || characterSelector.selectedIndex === 0) { alert("Персонаж не выбран."); return; }
-        const characterName = characterSelector.options[characterSelector.selectedIndex].text;
+        const selectedId = characterSelectorWrapper ? characterSelectorWrapper.dataset.value : null;
+        if (!selectedId) {
+            alert("Персонаж не выбран.");
+            return;
+        }
+        const characterName = characterSelectorTrigger ? characterSelectorTrigger.querySelector('span').textContent : '';
         if (confirm(`Вы уверены, что хотите удалить персонажа "${characterName}"?`)) {
             try {
                 await fetch(`${BACKEND_URL}/api/characters/${selectedId}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${userData.token}` } });
                 await loadCharacterList();
-                activeCharacterId = null;
-                currentCharacterData = {};
-            } catch (error) { console.error("Failed to delete character:", error); }
-        }
-    }
-
-    async function viewOtherCharacters() {
-        try {
-            const response = await fetch(`${BACKEND_URL}/api/characters/all`, { headers: { 'Authorization': `Bearer ${userData.token}` } });
-            if (!response.ok) throw new Error('Failed to fetch all characters');
-            const characters = await response.json();
-            const modal = document.createElement('div');
-            modal.className = 'modal-overlay';
-            modal.innerHTML = `
-                <div class="sheet-modal-content">
-                    <button class="close-btn" id="close-others-modal">&times;</button>
-                    <h2>Персонажи</h2>
-                    <select id="otherCharacterSelector">
-                        <option disabled selected>-- Выберите персонажа --</option>
-                        ${characters.map(char => `<option value="${char._id}">${char.name}</option>`).join('')}
-                    </select>
-                    <button id="viewOtherCharacterBtn">Просмотреть</button>
-                </div>
-            `;
-            document.body.appendChild(modal);
-            const closeBtn = modal.querySelector('#close-others-modal');
-            const viewBtn = modal.querySelector('#viewOtherCharacterBtn');
-            const selector = modal.querySelector('#otherCharacterSelector');
-
-            closeBtn.addEventListener('click', () => modal.remove());
-            modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
-            viewBtn.addEventListener('click', async () => {
-                const charId = selector.value;
-                if (charId) {
-                    try {
-                        const response = await fetch(`${BACKEND_URL}/api/characters/public/${charId}`, { headers: { 'Authorization': `Bearer ${userData.token}` } });
-                        if (!response.ok) throw new Error('Character not found');
-                        const charData = await response.json();
-                        socket.emit('character:view', charData);
-                        modal.remove();
-                    } catch (error) { console.error("Failed to view character:", error); }
+                if (activeCharacterId === selectedId) {
+                    activeCharacterId = null;
+                    currentCharacterData = {};
+                    actionBar.innerHTML = '';
+                    // Очищаем сохраненный ID персонажа
+                    localStorage.removeItem('activeCharacterId');
+                    // Сбрасываем UI селектора
+                    if (characterSelectorWrapper) characterSelectorWrapper.dataset.value = '';
+                    if (characterSelectorTrigger) characterSelectorTrigger.querySelector('span').textContent = '-- Выберите персонажа --';
                 }
-            });
-        } catch (error) { console.error("Failed to load other characters:", error); }
-    }
-
-    function createViewOthersButton() {
-        const charButtons = characterManagerPanel.querySelector('.char-buttons');
-        const viewOthersBtn = document.createElement('button');
-        viewOthersBtn.id = 'viewOthersBtn';
-        viewOthersBtn.textContent = 'Просмотреть других';
-        viewOthersBtn.addEventListener('click', viewOtherCharacters);
-        charButtons.appendChild(viewOthersBtn);
+            } catch (error) {
+                console.error("Failed to delete character:", error);
+            }
+        }
     }
 
     function sendLogMessage(text) {
         if (text && text.trim() !== '') {
             const messageData = { charName: isGm ? 'Мастер' : (currentCharacterData.name || 'Игрок') };
+            // Поддержка команды /roll
             const rollMatch = text.match(/^\/(r|roll)\s+(.*)/);
             if (rollMatch) {
                 const notation = rollMatch[2];
-                messageData.text = `бросает ${notation}`;
-                socket.emit('log:send', messageData);
+                messageData.text = `бросает ${notation}`; // Текст, который увидят все
+                socket.emit('log:send', { text: messageData.text, notation: notation, charName: messageData.charName });
             } else {
                 messageData.text = text;
                 socket.emit('log:send', messageData);
@@ -462,119 +981,140 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- Логика карты ---
+    // --- НОВАЯ ЛОГИКА ГЛОБАЛЬНОЙ КАРТЫ ---
     function resizeCanvas() {
-        const container = document.getElementById('map-container');
-        battleMapCanvas.width = container.clientWidth;
-        battleMapCanvas.height = container.clientHeight;
-    }
+    const container = document.getElementById('map-container');
+    const rect = container.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+
+    // Устанавливаем реальный размер в пикселях
+    mainCanvas.width = rect.width * dpr;
+    mainCanvas.height = rect.height * dpr;
+
+    // Устанавливаем отображаемый размер через CSS
+    mainCanvas.style.width = `${rect.width}px`;
+    mainCanvas.style.height = `${rect.height}px`;
+
+    // Масштабируем контекст, чтобы все рисовалось в высоком разрешении
+    ctx.scale(dpr, dpr);
+}
 
     function gameLoop() {
-        drawMap();
+        renderCanvas();
         requestAnimationFrame(gameLoop);
     }
 
-    function drawMap() {
-        ctx.clearRect(0, 0, battleMapCanvas.width, battleMapCanvas.height);
-        if (mapData.backgroundImage) {
-            ctx.drawImage(mapData.backgroundImage, 0, 0, battleMapCanvas.width, battleMapCanvas.height);
+    function renderCanvas() {
+        ctx.save();
+        ctx.clearRect(0, 0, mainCanvas.width, mainCanvas.height);
+        ctx.translate(viewTransform.offsetX, viewTransform.offsetY);
+        ctx.scale(viewTransform.scale, viewTransform.scale);
+        if (worldMapState.image) {
+            ctx.drawImage(worldMapState.image, 0, 0);
         } else {
-            ctx.fillStyle = 'rgba(0,0,0,0.2)';
-            ctx.fillRect(0, 0, battleMapCanvas.width, battleMapCanvas.height);
-        }
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-        ctx.lineWidth = 1;
-        for (let x = 0; x <= battleMapCanvas.width; x += mapData.gridSize) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, battleMapCanvas.height); ctx.stroke(); }
-        for (let y = 0; y <= battleMapCanvas.height; y += mapData.gridSize) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(battleMapCanvas.width, y); ctx.stroke(); }
-
-        if (hoveredCell) {
-            ctx.fillStyle = 'rgba(0, 184, 212, 0.2)';
-            ctx.fillRect(hoveredCell.x, hoveredCell.y, mapData.gridSize, mapData.gridSize);
+            ctx.fillStyle = '#1A2138';
+            ctx.fillRect(0, 0, mainCanvas.width / viewTransform.scale, mainCanvas.height / viewTransform.scale);
         }
         
-        const currentTime = performance.now();
-        const currentTurnCombatant = currentCombatState && currentCombatState.isActive ? currentCombatState.combatants[currentCombatState.turn] : null;
-
-        mapData.characters.forEach(char => {
-            const lerpSpeed = 0.1;
-            char.currentX = lerp(char.currentX, char.mapX || 100, lerpSpeed);
-            char.currentY = lerp(char.currentY, char.mapY || 100, lerpSpeed);
-
-            const isSelf = char._id === activeCharacterId;
-            const isSelectedForMove = char._id === selectedCharacterForMove;
-            let radius = mapData.gridSize / 2.5;
-
-            if (char.spawnTime && currentTime - char.spawnTime < 1000) {
-                const pulse = Math.sin((currentTime - char.spawnTime) / 1000 * Math.PI * 2) * 2;
-                radius += pulse;
-            } else {
-                char.spawnTime = null;
-            }
-
+        // Рисуем предпросмотр места перемещения
+        if (selectedCharacterForMove && mousePreviewPosition) {
+            ctx.save();
+            ctx.translate(mousePreviewPosition.x, mousePreviewPosition.y);
+            ctx.scale(1 / viewTransform.scale, 1 / viewTransform.scale);
+            
+            // Рисуем полупрозрачный круг-предпросмотр
             ctx.beginPath();
-            ctx.arc(char.currentX, char.currentY, radius, 0, Math.PI * 2);
-            ctx.fillStyle = isSelf ? 'rgba(0, 184, 212, 0.8)' : 'rgba(229, 57, 53, 0.8)';
+            ctx.arc(0, 0, TOKEN_RADIUS, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
             ctx.fill();
-
-            if (isSelectedForMove) {
-                const selectionPulse = Math.sin(currentTime / 150) * 2;
-                ctx.strokeStyle = 'yellow';
-                ctx.lineWidth = 3 + selectionPulse;
-                ctx.stroke();
-            }
-
-            if (currentTurnCombatant && findCombatantByCharacterId(char._id) && currentTurnCombatant.targetId === findCombatantByCharacterId(char._id)._id.toString()) {
-                 ctx.strokeStyle = 'rgba(255, 0, 0, 0.9)';
-                 ctx.lineWidth = 4;
-                 ctx.stroke();
-            }
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            ctx.restore();
+        }
+        
+        const visibleObjects = getVisibleObjects();
+        const currentTurnCombatant = currentCombatState && currentCombatState.isActive ? currentCombatState.combatants[currentCombatState.turn] : null;
+        visibleObjects.forEach(obj => {
+            const combatantData = currentCombatState?.isActive ? currentCombatState.combatants.find(c => c.characterId?.toString() === obj._id || c._id.toString() === obj._id) : null;
+            const isSelected = obj._id === selectedCharacterForMove;
+            const isHovered = hoveredObject && hoveredObject._id === obj._id;
+            const isTarget = currentTurnCombatant && combatantData && currentTurnCombatant.targetId === (combatantData.characterId?.toString() || combatantData._id.toString());
+            ctx.save();
+            ctx.translate(obj.worldMapX, obj.worldMapY);
+            ctx.scale(1 / viewTransform.scale, 1 / viewTransform.scale);
+            drawToken(obj, isSelected, isHovered, isTarget);
+            ctx.restore();
         });
-
         if (currentTurnCombatant && currentTurnCombatant.targetId) {
-            const attackerCombatant = currentCombatState.combatants[currentCombatState.turn];
-            const attacker = mapData.characters.find(c => c._id === attackerCombatant.characterId);
-            const target = findCharacterByCombatantId(currentTurnCombatant.targetId);
-
+            const attacker = visibleObjects.find(o => o._id === (currentTurnCombatant.characterId?.toString() || currentTurnCombatant._id.toString()));
+            const target = visibleObjects.find(o => o._id === currentTurnCombatant.targetId);
             if (attacker && target) {
-                drawArrow(attacker.currentX, attacker.currentY, target.currentX, target.currentY, 'rgba(255, 0, 0, 0.7)');
+                drawArrow(attacker.worldMapX, attacker.worldMapY, target.worldMapX, target.worldMapY, 'rgba(255, 0, 0, 0.7)');
             }
         }
-
-        if (selectedCharacterForMove && hoveredCell) {
-            const char = mapData.characters.find(c => c._id === selectedCharacterForMove);
-            if (char) {
-                const targetX_draw = hoveredCell.x + mapData.gridSize / 2;
-                const targetY_draw = hoveredCell.y + mapData.gridSize / 2;
-
-                ctx.beginPath();
-                ctx.setLineDash([5, 10]);
-                ctx.strokeStyle = 'rgba(255, 255, 0, 0.8)';
-                ctx.lineWidth = 2;
-                ctx.moveTo(char.currentX, char.currentY);
-                ctx.lineTo(targetX_draw, targetY_draw);
-                ctx.stroke();
-                ctx.setLineDash([]);
-
-                const distancePx = Math.sqrt(Math.pow(targetX_draw - char.currentX, 2) + Math.pow(targetY_draw - char.currentY, 2));
-                const distanceFeet = (distancePx / mapData.gridSize) * 5;
-                ctx.fillStyle = 'yellow';
-                ctx.font = 'bold 16px Montserrat';
-                ctx.textAlign = 'center';
-                const textX = char.currentX + (targetX_draw - char.currentX) / 2;
-                const textY = char.currentY + (targetY_draw - char.currentY) / 2 - 10;
-                ctx.fillText(`${distanceFeet.toFixed(0)} ft`, textX, textY);
-            }
-        }
+        ctx.restore();
     }
-    
-    function lerp(start, end, amt) {
-        if (start === undefined) return end;
-        if (end === undefined) return start;
-        return (1 - amt) * start + amt * end;
+
+    function drawToken(obj, isSelected, isHovered, isTarget) {
+        const isNpc = !obj.isPlayer;
+        const color = isNpc ? 'rgba(229, 57, 53, 0.9)' : 'rgba(0, 184, 212, 0.9)';
+        ctx.beginPath();
+        ctx.arc(0, 0, TOKEN_RADIUS, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        if (isTarget) {
+            ctx.strokeStyle = 'rgba(255, 0, 0, 0.9)';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+        } else if (isSelected) {
+            ctx.strokeStyle = 'rgba(255, 255, 0, 0.9)';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+        } else if (isHovered) {
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+        }
+        ctx.fillStyle = 'white';
+        ctx.font = 'bold 14px Montserrat';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.shadowColor = 'black';
+        ctx.shadowBlur = 4;
+        ctx.fillText(obj.name, 0, -TOKEN_RADIUS - 5);
+        ctx.shadowBlur = 0;
+    }
+
+    function getVisibleObjects() {
+        const visible = [];
+        if (currentCombatState && currentCombatState.isActive) {
+            return currentCombatState.combatants.map(c => {
+                const charData = worldMapState.characters.find(char => char._id === (c.characterId?.toString() || c._id.toString()));
+                // Приоритет отдаем координатам из charData (текущие координаты), а не из c (старые координаты боя)
+                return {
+                    ...c,
+                    ...charData,
+                    _id: c.characterId ? c.characterId.toString() : c._id.toString()
+                };
+            });
+        } else if (activeCharacterId) {
+            const activeChar = worldMapState.characters.find(c => c._id === activeCharacterId);
+            if (activeChar) {
+                visible.push(activeChar);
+            }
+        }
+        return visible;
     }
 
     function drawArrow(fromx, fromy, tox, toy, color) {
-        const headlen = 10;
+        const headlen = 15;
         const dx = tox - fromx;
         const dy = toy - fromy;
         const angle = Math.atan2(dy, dx);
@@ -589,111 +1129,96 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.stroke();
     }
 
-    function findCharacterByCombatantId(combatantId) {
-        if (!currentCombatState) return null;
-        const combatant = currentCombatState.combatants.find(c => c._id.toString() === combatantId);
-        if (!combatant) return null;
-        return combatant.isPlayer ? mapData.characters.find(char => char._id === combatant.characterId) : combatant;
+    function screenToWorldCoords(x, y) {
+        return {
+            x: (x - viewTransform.offsetX) / viewTransform.scale,
+            y: (y - viewTransform.offsetY) / viewTransform.scale
+        };
     }
-    
-    function findCombatantByCharacterId(charId) {
-        if (!currentCombatState || !currentCombatState.isActive) return null;
-        return currentCombatState.combatants.find(c => c.characterId === charId);
+
+    function findObjectUnderMouse(screenX, screenY) {
+        const visibleObjects = getVisibleObjects();
+        for (let i = visibleObjects.length - 1; i >= 0; i--) {
+            const obj = visibleObjects[i];
+            const objScreenX = obj.worldMapX * viewTransform.scale + viewTransform.offsetX;
+            const objScreenY = obj.worldMapY * viewTransform.scale + viewTransform.offsetY;
+            const distance = Math.sqrt(Math.pow(screenX - objScreenX, 2) + Math.pow(screenY - objScreenY, 2));
+            if (distance <= TOKEN_RADIUS) {
+                return obj;
+            }
+        }
+        return null;
     }
-    
-    function loadMapBackground(url) {
-        if (!url) { mapData.backgroundImage = null; return; }
+
+    function loadWorldMapImage(url) {
+        if (!url) {
+            worldMapState.image = null;
+            worldMapState.imageUrl = '';
+            return;
+        }
         const img = new Image();
         img.crossOrigin = "Anonymous";
-        img.onload = () => { mapData.backgroundImage = img; };
-        img.onerror = () => alert('Не удалось загрузить фон.');
+        img.onload = () => { worldMapState.image = img; };
+        img.onerror = () => { console.error('Не удалось загрузить карту мира.'); };
         img.src = url;
+        worldMapState.imageUrl = url;
+        if (isGm) worldMapBackgroundUrlInput.value = url;
     }
 
-    async function loadMapData() {
-        try {
-            const response = await fetch(`${BACKEND_URL}/api/map`);
-            if (!response.ok) throw new Error('Failed to load map');
-            const data = await response.json();
-            mapData.gridSize = data.gridSize || 50;
-            gridSizeInput.value = mapData.gridSize;
-            if (data.backgroundUrl) {
-                mapBackgroundInput.value = data.backgroundUrl;
-                loadMapBackground(data.backgroundUrl);
-            }
-        } catch (error) { console.error(error); }
-    }
+    function initializeWorldMap() {
+        loadWorldMapImage('/img/worldmap.jpg');
+        fetch(`${BACKEND_URL}/api/worldmap`, { headers: { 'Authorization': `Bearer ${userData.token}` } })
+            .then(res => res.json())
+            .then(data => {
+                worldMapState.characters = data.characters;
+            })
+            .catch(error => console.error("Ошибка при загрузке данных карты:", error));
 
-    async function saveMapData() {
-        try {
-            await fetch(`${BACKEND_URL}/api/map`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ gridSize: mapData.gridSize, backgroundUrl: mapBackgroundInput.value.trim() })
-            });
-        } catch (error) { console.error('Failed to save map data:', error); }
+        setupMapEventListeners();
     }
 
     // --- Логика боя ---
     function renderCombatTracker() {
         const gmOnlyControls = [startCombatBtn, endCombatBtn, nextTurnBtn, addNpcForm];
-
         if (!currentCombatState || !currentCombatState.isActive) {
             initiativeTracker.innerHTML = '';
             const existingRollBtn = document.getElementById('rollAllInitiativeBtn');
-            if(existingRollBtn) existingRollBtn.remove();
-            
+            if (existingRollBtn) existingRollBtn.remove();
             if (isGm) {
                 startCombatBtn.classList.remove('hidden');
                 endCombatBtn.classList.add('hidden');
                 nextTurnBtn.classList.add('hidden');
-                addNpcForm.classList.add('hidden');
+                addNpcForm.classList.remove('hidden');
             } else {
                 gmOnlyControls.forEach(el => el.classList.add('hidden'));
             }
             return;
         }
-
         startCombatBtn.classList.add('hidden');
         if (isGm) {
             endCombatBtn.classList.remove('hidden');
             nextTurnBtn.classList.remove('hidden');
             addNpcForm.classList.remove('hidden');
-
             if (!document.getElementById('rollAllInitiativeBtn')) {
                 const rollAllBtn = document.createElement('button');
                 rollAllBtn.id = 'rollAllInitiativeBtn';
                 rollAllBtn.textContent = 'Init Всем';
-                rollAllBtn.addEventListener('click', async () => {
-                    try {
-                        const response = await fetch(`${BACKEND_URL}/api/combat/roll-initiative`, {
-                            method: 'PUT',
-                            headers: { 'Authorization': `Bearer ${userData.token}` }
-                        });
-                        if (!response.ok) {
-                           const err = await response.json();
-                           console.error('Failed to roll initiative for all:', err.message);
-                        }
-                    } catch (error) {
-                        console.error('Error rolling initiative:', error);
-                    }
-                });
+                rollAllBtn.addEventListener('click', async () => { try { const response = await fetch(`${BACKEND_URL}/api/combat/roll-initiative`, { method: 'PUT', headers: { 'Authorization': `Bearer ${userData.token}` } }); if (!response.ok) { const err = await response.json(); console.error('Failed to roll initiative for all:', err.message); } } catch (error) { console.error('Error rolling initiative:', error); } });
                 combatControls.insertBefore(rollAllBtn, nextTurnBtn);
             }
         }
-
         initiativeTracker.innerHTML = '';
         currentCombatState.combatants.forEach((c, index) => {
             const li = document.createElement('li');
-            if (index === currentCombatState.turn) {
-                li.classList.add('current-turn');
-            }
-
+            if (index === currentCombatState.turn) { li.classList.add('current-turn'); }
             const nameSpan = document.createElement('span');
             nameSpan.className = 'combatant-name';
             nameSpan.textContent = c.name;
             li.appendChild(nameSpan);
-
+            if (currentCombatState.isActive) {
+                const hpHtml = getCombatantHpHtml(c._id.toString(), c.currentHp, c.maxHp);
+                li.appendChild(hpHtml);
+            }
             const initiativeContainer = document.createElement('div');
             initiativeContainer.className = 'initiative-container';
             if (c.initiative === null) {
@@ -703,14 +1228,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 input.placeholder = '...';
                 input.dataset.id = c._id;
                 input.disabled = !isGm && c.characterId !== activeCharacterId;
-                input.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter') {
-                        const initiative = parseInt(e.target.value, 10);
-                        if (!isNaN(initiative)) {
-                            socket.emit('combat:set_initiative', { combatantId: c._id, initiative });
-                        }
-                    }
-                });
+                input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { const initiative = parseInt(e.target.value, 10); if (!isNaN(initiative)) { socket.emit('combat:set_initiative', { combatantId: c._id, initiative }); } } });
                 initiativeContainer.appendChild(input);
             } else {
                 const valueSpan = document.createElement('span');
@@ -719,517 +1237,300 @@ document.addEventListener('DOMContentLoaded', () => {
                 initiativeContainer.appendChild(valueSpan);
             }
             li.appendChild(initiativeContainer);
-
-            const removeBtnContainer = document.createElement('div');
             if (!c.isPlayer && isGm) {
                 const removeBtn = document.createElement('button');
                 removeBtn.className = 'remove-combatant-btn';
                 removeBtn.innerHTML = '&times;';
                 removeBtn.dataset.id = c._id;
-                removeBtn.addEventListener('click', () => {
-                    socket.emit('combat:remove_combatant', c._id);
-                });
-                removeBtnContainer.appendChild(removeBtn);
+                removeBtn.addEventListener('click', () => { socket.emit('combat:remove_combatant', c._id); });
+                li.appendChild(removeBtn);
             }
-            li.appendChild(removeBtnContainer);
             initiativeTracker.appendChild(li);
         });
     }
-    
-    // НОВЫЕ ФУНКЦИИ ДЛЯ БОЕВЫХ ДЕЙСТВИЙ
-    function renderCombatActionsAndEquipment() {
-        if (!currentCharacterData || !currentCharacterData.attacks || !currentCharacterData.spells) {
-            attacksForCombat.innerHTML = '<p>Загрузите персонажа</p>';
-            spellsForCombat.innerHTML = '';
-            return;
+    function getCombatantHpHtml(id, current, max) {
+        const hpContainer = document.createElement('div');
+        hpContainer.className = 'hp-input-container';
+        let hpInput = '';
+        if (isGm) {
+            hpInput = `<input type="number" class="hp-input" data-id="${id}" value="${current}">`;
+        } else {
+            hpInput = `<span>${current}</span>`;
         }
-
-        // Атаки
-        attacksForCombat.innerHTML = `<h4>Атаки</h4>`;
-        currentCharacterData.attacks.forEach(attack => {
-            const btn = document.createElement('button');
-            btn.className = 'combat-action-btn';
-            btn.dataset.type = 'attack';
-            btn.dataset.name = attack.name;
-            btn.dataset.bonus = attack.bonus;
-            btn.dataset.damage = attack.damage;
-            btn.dataset.damageType = attack.damageType;
-            btn.textContent = `${attack.name} (${attack.bonus}, ${attack.damage})`;
-            attacksForCombat.appendChild(btn);
-        });
-        
-        // Заклинания
-        spellsForCombat.innerHTML = `<h4>Заклинания</h4>`;
-        currentCharacterData.spells.forEach(spell => {
-            const btn = document.createElement('button');
-            btn.className = 'combat-action-btn';
-            btn.dataset.type = 'spell';
-            btn.dataset.name = spell.name;
-            btn.dataset.bonus = spell.attackBonus;
-            btn.dataset.damage = spell.damage;
-            btn.dataset.damageType = spell.damageType;
-            btn.dataset.description = spell.description;
-            btn.textContent = `${spell.name} (${spell.level})`;
-            spellsForCombat.appendChild(btn);
-        });
+        hpContainer.innerHTML = `${hpInput}<span> / ${max}</span>`;
+        if (isGm) { const input = hpContainer.querySelector('.hp-input'); input.addEventListener('change', (e) => { const newHp = parseInt(e.target.value, 10); if (!isNaN(newHp)) { sendHpUpdate(id, newHp); } }); }
+        return hpContainer;
     }
-    
-    function renderEquipment() {
-        if (!currentCharacterData || !currentCharacterData.equipment) {
-            equipmentForCombat.innerHTML = '<p>Загрузите персонажа</p>';
-            return;
-        }
-        equipmentForCombat.innerHTML = `<textarea readonly>${currentCharacterData.equipment}</textarea>`;
+    function sendHpUpdate(combatantId, newHp) {
+        socket.emit('combat:update_hp', { combatantId, newHp });
     }
 
-    // --- Обработчики событий ---
+    // --- ОСНОВНЫЕ ОБРАБОТЧИКИ СОБЫТИЙ ---
     function setupMainEventListeners() {
         window.addEventListener('resize', resizeCanvas);
+        
+        loadCharacterBtn.addEventListener('click', () => { 
+            const selectedId = characterSelectorWrapper.dataset.value; 
+            if (selectedId) { 
+                activeActionTab = 'attacks'; 
+                loadCharacter(selectedId); 
+            } else { 
+                alert('Пожалуйста, выберите персонажа для загрузки.'); 
+            } 
+        });
 
-        loadCharacterBtn.addEventListener('click', () => loadCharacter(characterSelector.value));
         newCharacterBtn.addEventListener('click', createNewCharacter);
         deleteCharacterBtn.addEventListener('click', deleteCharacter);
-
-        eventLogInput.addEventListener('keydown', (e) => { 
-            if (e.key === 'Enter') {
-                sendLogMessage(eventLogInput.value);
-                eventLogInput.value = '';
-            }
-        });
-        eventLogSendBtn.addEventListener('click', () => {
-            sendLogMessage(eventLogInput.value);
-            eventLogInput.value = '';
-        });
-
-        loadMapBackgroundBtn.addEventListener('click', () => {
-            const url = mapBackgroundInput.value.trim();
-            loadMapBackground(url);
-            saveMapData();
-        });
-        gridSizeInput.addEventListener('change', () => {
-            mapData.gridSize = parseInt(gridSizeInput.value) || 50;
-            saveMapData();
-        });
-
+        eventLogInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { sendLogMessage(eventLogInput.value); eventLogInput.value = ''; } });
+        eventLogSendBtn.addEventListener('click', () => { sendLogMessage(eventLogInput.value); eventLogInput.value = ''; });
         startCombatBtn.addEventListener('click', () => socket.emit('combat:start'));
         endCombatBtn.addEventListener('click', () => socket.emit('combat:end'));
         nextTurnBtn.addEventListener('click', () => socket.emit('combat:next_turn'));
-        addNpcBtn.addEventListener('click', () => {
-            const name = npcNameInput.value.trim();
-            const initiative = parseInt(npcInitiativeInput.value, 10);
-            if (name) {
-                socket.emit('combat:add_npc', { name, initiative: isNaN(initiative) ? null : initiative });
-                npcNameInput.value = '';
-                npcInitiativeInput.value = '';
-            }
-        });
-
-        battleMapCanvas.addEventListener('mousemove', (e) => {
-            const rect = battleMapCanvas.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const mouseY = e.clientY - rect.top;
-            const cellX = Math.floor(mouseX / mapData.gridSize) * mapData.gridSize;
-            const cellY = Math.floor(mouseY / mapData.gridSize) * mapData.gridSize;
-            if (!hoveredCell || hoveredCell.x !== cellX || hoveredCell.y !== cellY) {
-                hoveredCell = { x: cellX, y: cellY };
-            }
-        });
-        battleMapCanvas.addEventListener('mouseleave', () => {
-            hoveredCell = null;
-        });
-
-        battleMapCanvas.addEventListener('click', (e) => {
-            const rect = battleMapCanvas.getBoundingClientRect();
-            const clickX = e.clientX - rect.left;
-            const clickY = e.clientY - rect.top;
-            console.log(`Map clicked at: x=${clickX}, y=${clickY}`);
-
-            const clickedCharToken = findClickedCharacter(clickX, clickY);
-            console.log('Clicked character:', clickedCharToken);
-            
-            const currentTurnCombatant = currentCombatState && currentCombatState.isActive ? currentCombatState.combatants[currentCombatState.turn] : null;
-            const isMyTurn = currentTurnCombatant && currentTurnCombatant.characterId === activeCharacterId;
-
-            // Если выбрано действие, пытаемся применить его
-            if (selectedCombatAction && clickedCharToken && (isGm || isMyTurn)) {
-                handleCombatAction(selectedCombatAction, clickedCharToken);
-                selectedCombatAction = null;
-                document.querySelectorAll('.combat-action-btn.active').forEach(b => b.classList.remove('active'));
+        
+        // Обработчик кликов по панели действий
+        actionBar.addEventListener('click', (e) => {
+            // Кнопка завершения хода
+            const endTurnBtn = e.target.closest('#action-bar-end-turn');
+            if (endTurnBtn) {
+                socket.emit('combat:next_turn');
                 return;
             }
 
-            // Выбор токена для перемещения
-            if (clickedCharToken && (isGm || clickedCharToken._id === activeCharacterId)) {
-                selectedCharacterForMove = selectedCharacterForMove === clickedCharToken._id ? null : clickedCharToken._id;
-                console.log('Selected for move:', selectedCharacterForMove);
-            } else if (selectedCharacterForMove && hoveredCell) {
-                const charToMove = mapData.characters.find(c => c._id === selectedCharacterForMove);
-                if (charToMove && (isGm || charToMove._id === activeCharacterId)) {
-                    const targetX = hoveredCell.x + mapData.gridSize / 2;
-                    const targetY = hoveredCell.y + mapData.gridSize / 2;
-                    if (targetX >= 0 && targetY >= 0 && targetX <= battleMapCanvas.width && targetY <= battleMapCanvas.height) {
-                        socket.emit('character:move', { _id: charToMove._id, name: charToMove.name, mapX: targetX, mapY: targetY });
-                        console.log('Moving character:', charToMove._id, 'to', { targetX, targetY });
-                    } else {
-                        console.log('Invalid move coordinates:', { targetX, targetY });
-                    }
-                    selectedCharacterForMove = null;
-                } else {
-                    console.log('No permission to move:', charToMove);
-                }
-            }
-
-            // Выбор цели в бою
-            if (currentCombatState && currentCombatState.isActive) {
-                if (currentTurnCombatant) {
-                    if (clickedCharToken && (isGm || isMyTurn)) {
-                        const clickedCombatant = findCombatantByCharacterId(clickedCharToken._id);
-                        if (clickedCombatant && currentTurnCombatant._id.toString() !== clickedCombatant._id.toString()) {
-                            socket.emit('combat:set_target', { 
-                                targetId: clickedCombatant._id.toString() 
-                            });
-                            console.log('Target set:', clickedCombatant);
-                            selectedCharacterForMove = null;
-                        }
-                    }
-                }
-            }
-        });
-        
-        function findClickedCharacter(x, y) {
-            return mapData.characters.find(char => {
-                if (!char.currentX || !char.currentY) {
-                    console.warn(`Character ${char._id} has no coordinates:`, char);
-                    return false;
-                }
-                const distance = Math.sqrt(Math.pow(x - char.currentX, 2) + Math.pow(y - char.currentY, 2));
-                return distance <= mapData.gridSize; // Увеличен радиус для точного клика
-            });
-        }
-        
-        function findCombatantByCharacterId(charId) {
-            if (!currentCombatState || !currentCombatState.isActive) return null;
-            return currentCombatState.combatants.find(c => c.characterId === charId);
-        }
-
-        openSheetBtn.addEventListener('click', () => {
-            if (!activeCharacterId) {
-                alert('Сначала загрузите персонажа!');
+            // Переключение табов
+            const tabBtn = e.target.closest('.tab-button');
+            if (tabBtn && tabBtn.dataset.tab) {
+                activeActionTab = tabBtn.dataset.tab;
+                renderActionBar(currentCharacterData);
                 return;
             }
-            sheetContainer.innerHTML = getCharacterSheetHTML();
-            populateSheet(currentCharacterData);
-            sheetModal.classList.remove('hidden');
-        });
 
-        closeSheetBtn.addEventListener('click', () => {
-            sheetModal.classList.add('hidden');
-        });
-        sheetModal.addEventListener('click', (e) => {
-            if (e.target === sheetModal) {
-                sheetModal.classList.add('hidden');
-            }
-        });
-        
-        // ОБНОВЛЕННЫЕ ОБРАБОТЧИКИ ДЛЯ ЛИСТА ПЕРСОНАЖА
-        sheetContainer.addEventListener('click', (e) => {
-            if (isGm) return; // GM не может редактировать лист персонажа
-            if (e.target.classList.contains('add-attack-btn')) {
-                addAttack(e.target.closest('.attacks-section'));
-            } else if (e.target.classList.contains('add-spell-btn')) {
-                addSpell(e.target.closest('.attacks-section'));
-            } else if (e.target.classList.contains('remove-attack-btn')) {
-                const index = e.target.closest('.attack-item').dataset.index;
-                removeAttack(index);
-            } else if (e.target.classList.contains('remove-spell-btn')) {
-                const index = e.target.closest('.spell-item').dataset.index;
-                removeSpell(index);
-            }
-        });
-        
-        // НОВЫЙ ОБРАБОТЧИК ДЛЯ БОЕВЫХ ДЕЙСТВИЙ
-        document.getElementById('attack-spells-panel').addEventListener('click', (e) => {
-            const btn = e.target.closest('.combat-action-btn');
-            if (btn) {
-                const currentTurnCombatant = currentCombatState && currentCombatState.isActive ? currentCombatState.combatants[currentCombatState.turn] : null;
-                const isMyTurn = currentTurnCombatant && currentTurnCombatant.characterId === activeCharacterId;
-                
+            // Клик по слоту действия
+            const actionBtn = e.target.closest('.hotbar-button');
+            if (actionBtn) {
+                // Если это пустой слот, показываем информацию
+                if (actionBtn.dataset.empty === 'true') {
+                    const slotNumber = parseInt(actionBtn.dataset.slot) + 1;
+                    alert(`Пустой слот ${slotNumber}. Добавьте ${activeActionTab === 'attacks' ? 'атаку' : activeActionTab === 'spells' ? 'заклинание' : 'предмет'} через лист персонажа.`);
+                    return;
+                }
+
+                // Предметы пока просто показываем
+                if (actionBtn.dataset.type === 'item') {
+                    alert(`Выбран предмет: ${actionBtn.dataset.name}`);
+                    return;
+                }
+
+                // Проверяем, можно ли использовать действие
+                const currentTurnCombatant = currentCombatState && currentCombatState.isActive 
+                    ? currentCombatState.combatants[currentCombatState.turn] 
+                    : null;
+                const isMyTurn = currentTurnCombatant && currentTurnCombatant.characterId 
+                    && currentTurnCombatant.characterId.toString() === activeCharacterId;
+
                 if (!isMyTurn && !isGm) {
                     alert('Сейчас не ваш ход!');
                     return;
                 }
+
+                // Выбираем действие
+                selectedCombatAction = { ...actionBtn.dataset };
+                document.querySelectorAll('.hotbar-button.active').forEach(b => b.classList.remove('active'));
+                actionBtn.classList.add('active');
                 
-                selectedCombatAction = {
-                    name: btn.dataset.name,
-                    type: btn.dataset.type,
-                    bonus: btn.dataset.bonus,
-                    damage: btn.dataset.damage,
-                    damageType: btn.dataset.damageType,
-                    description: btn.dataset.description,
-                };
-                
-                document.querySelectorAll('.combat-action-btn.active').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
+                // Добавляем визуальную обратную связь
+                actionBtn.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    actionBtn.style.transform = '';
+                }, 150);
+            }
+        });
+        addNpcBtn.addEventListener('click', () => { const name = npcNameInput.value.trim(); const initiative = parseInt(npcInitiativeInput.value, 10); const maxHp = parseInt(npcMaxHpInput.value, 10); const ac = parseInt(npcACInput.value, 10); if (name) { const { x, y } = screenToWorldCoords(mainCanvas.width / 2, mainCanvas.height / 2); socket.emit('combat:add_npc', { name, initiative: isNaN(initiative) ? null : initiative, maxHp: isNaN(maxHp) ? 10 : maxHp, ac: isNaN(ac) ? 10 : ac, worldMapX: x, worldMapY: y, }); npcNameInput.value = ''; npcInitiativeInput.value = ''; if (npcMaxHpInput) npcMaxHpInput.value = ''; if (npcACInput) npcACInput.value = ''; } });
+
+        openSheetBtn.addEventListener('click', async () => {
+            if (!activeCharacterId) {
+                alert('Сначала загрузите персонажа!');
+                return;
+            }
+            try {
+                const response = await fetch('character-sheet.html');
+                if (!response.ok) {
+                    throw new Error('Не удалось загрузить файл character-sheet.html');
+                }
+                const sheetHTML = await response.text();
+                sheetContainer.innerHTML = sheetHTML;
+                populateSheet(currentCharacterData);
+                sheetModal.classList.remove('hidden');
+            } catch (error) {
+                console.error("Ошибка при открытии листа персонажа:", error);
+            }
+        });
+
+        closeSheetBtn.addEventListener('click', () => { sheetModal.classList.add('hidden'); });
+        sheetModal.addEventListener('click', (e) => { if (e.target === sheetModal) { sheetModal.classList.add('hidden'); } });
+
+        sheetContainer.addEventListener('click', (e) => {
+            if (isGm) return;
+            // Старая логика добавления/удаления атак и снаряжения.
+            // Она будет заменена/адаптирована для нового виджета.
+            if (e.target.id === 'add-equipment-btn') {
+                const nameInput = document.getElementById('new-item-name');
+                const quantityInput = document.getElementById('new-item-quantity');
+                const name = nameInput.value;
+                const quantity = parseInt(quantityInput.value, 10);
+                if (name && !isNaN(quantity) && quantity > 0) {
+                    addEquipment({ name, quantity });
+                    nameInput.value = '';
+                    quantityInput.value = '1';
+                }
+            } else if (e.target.classList.contains('remove-equipment-btn')) {
+                const index = e.target.closest('.equipment-item').dataset.index;
+                removeEquipment(index);
+            }
+        });
+
+        // --- ДОБАВЛЕНО: Логика для кастомного селекта ---
+        if (characterSelectorTrigger) {
+            characterSelectorTrigger.addEventListener('click', () => {
+                characterSelectorWrapper.classList.toggle('open');
+            });
+        }
+
+        if (characterSelectorOptions) {
+            characterSelectorOptions.addEventListener('click', (e) => {
+                if (e.target.classList.contains('custom-select-option')) {
+                    const selectedOption = characterSelectorOptions.querySelector('.selected');
+                    if (selectedOption) {
+                        selectedOption.classList.remove('selected');
+                    }
+                    e.target.classList.add('selected');
+                    
+                    characterSelectorTrigger.querySelector('span').textContent = e.target.textContent;
+                    characterSelectorWrapper.dataset.value = e.target.dataset.value;
+                    characterSelectorWrapper.classList.remove('open');
+                }
+            });
+        }
+        
+        // Закрытие списка при клике вне его
+        window.addEventListener('click', (e) => {
+            if (characterSelectorWrapper && !characterSelectorWrapper.contains(e.target)) {
+                characterSelectorWrapper.classList.remove('open');
             }
         });
     }
 
-    function handleCombatAction(action, targetChar) {
-        if (!action || !targetChar) return;
-        
-        const targetCombatant = findCombatantByCharacterId(targetChar._id);
-        const targetName = targetCombatant ? targetCombatant.name : targetChar.name;
+    // --- ИСПРАВЛЕННЫЕ ОБРАБОТЧИКИ ДЛЯ КАРТЫ (ZOOM, PAN, CLICK) ---
+    function setupMapEventListeners() {
+        mainCanvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const scaleAmount = -e.deltaY * 0.001 * viewTransform.scale;
+            const newScale = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, viewTransform.scale + scaleAmount));
+            const mouseX = e.clientX - mainCanvas.getBoundingClientRect().left;
+            const mouseY = e.clientY - mainCanvas.getBoundingClientRect().top;
+            viewTransform.offsetX = mouseX - (mouseX - viewTransform.offsetX) * (newScale / viewTransform.scale);
+            viewTransform.offsetY = mouseY - (mouseY - viewTransform.offsetY) * (newScale / viewTransform.scale);
+            viewTransform.scale = newScale;
+        });
 
-        // Бросок на попадание
-        const attackRollCommand = `/roll 1d20${action.bonus} vs AC ${targetName}`;
-        sendLogMessage(`использует ${action.name} против ${targetName}. Бросок на попадание: ${attackRollCommand}`);
-        
-        // Бросок на урон
-        const damageRollCommand = `/roll ${action.damage}`;
-        sendLogMessage(`урон от ${action.name}: ${damageRollCommand} ${action.damageType}`);
-    }
-    
-    // --- ЛОГИКА ЛИСТА ПЕРСОНАЖА ---
-    function populateSheet(charData) {
-        const sheet = sheetContainer.querySelector('.character-sheet');
-        if (!sheet) return;
+        mainCanvas.addEventListener('mousedown', (e) => {
+            if (e.button === 0) {
+                isPanning = true;
+                mainCanvas.classList.add('panning');
+                lastMousePos = { x: e.clientX, y: e.clientY };
+                mouseHasMoved = false;
+            }
+        });
 
-        const inputs = sheet.querySelectorAll('.char-sheet-input');
-        inputs.forEach(input => {
-            const field = input.dataset.field;
-            if (field in charData) {
-                if (input.type === 'checkbox') {
-                    input.checked = charData[field];
+        mainCanvas.addEventListener('mousemove', (e) => {
+            const mouseX = e.clientX - mainCanvas.getBoundingClientRect().left;
+            const mouseY = e.clientY - mainCanvas.getBoundingClientRect().top;
+            
+            if (isPanning) {
+                mouseHasMoved = true;
+                const dx = e.clientX - lastMousePos.x;
+                const dy = e.clientY - lastMousePos.y;
+                viewTransform.offsetX += dx;
+                viewTransform.offsetY += dy;
+                lastMousePos = { x: e.clientX, y: e.clientY };
+            } else {
+                hoveredObject = findObjectUnderMouse(mouseX, mouseY);
+                mainCanvas.classList.toggle('pannable', !hoveredObject);
+                
+                // Обновляем позицию предпросмотра для перемещения токена
+                if (selectedCharacterForMove) {
+                    const worldCoords = screenToWorldCoords(mouseX, mouseY);
+                    mousePreviewPosition = worldCoords;
                 } else {
-                    input.value = charData[field] || '';
+                    mousePreviewPosition = null;
                 }
             }
         });
-        
-        const playerNameInput = sheet.querySelector('[data-field="playerName"]');
-        if (playerNameInput) playerNameInput.value = charData.playerName || userData.username;
 
-        updateCalculatedFields(sheet, charData);
-        populateAttacksAndSpells(sheet, charData);
-    }
+        mainCanvas.addEventListener('mouseup', (e) => {
+            if (e.button === 0) {
+                isPanning = false;
+                mainCanvas.classList.remove('panning');
 
-    function populateAttacksAndSpells(sheet, charData) {
-        const attacksList = sheet.querySelector('#attacks-list');
-        const spellsList = sheet.querySelector('#spells-list');
+                if (!mouseHasMoved) {
+                    const mouseX = e.clientX - mainCanvas.getBoundingClientRect().left;
+                    const mouseY = e.clientY - mainCanvas.getBoundingClientRect().top;
+                    const clickedObject = findObjectUnderMouse(mouseX, mouseY);
+                    const isMyTurn = currentCombatState?.isActive && currentCombatState.combatants[currentCombatState.turn]?.characterId?.toString() === activeCharacterId;
 
-        attacksList.innerHTML = '';
-        spellsList.innerHTML = '';
+                    if (selectedCombatAction && clickedObject && (isGm || isMyTurn)) {
+                        handleCombatAction(selectedCombatAction, clickedObject);
+                        selectedCombatAction = null;
+                        document.querySelectorAll('.hotbar-button.active').forEach(b => b.classList.remove('active'));
+                        return;
+                    }
 
-        if (charData.attacks && charData.attacks.length > 0) {
-            charData.attacks.forEach((attack, index) => {
-                const attackItem = document.createElement('div');
-                attackItem.className = 'attack-item';
-                attackItem.dataset.index = index;
-                attackItem.innerHTML = `
-                    <input type="text" placeholder="Название" data-field="name" value="${attack.name}" class="char-sheet-input attack-input" ${isGm ? 'readonly' : ''}>
-                    <input type="text" placeholder="Бонус атаки" data-field="bonus" value="${attack.bonus}" class="char-sheet-input attack-input" ${isGm ? 'readonly' : ''}>
-                    <input type="text" placeholder="Урон" data-field="damage" value="${attack.damage}" class="char-sheet-input attack-input" ${isGm ? 'readonly' : ''}>
-                    <input type="text" placeholder="Тип урона" data-field="damageType" value="${attack.damageType}" class="char-sheet-input attack-input" ${isGm ? 'readonly' : ''}>
-                    ${!isGm ? '<button class="remove-attack-btn">&times;</button>' : ''}
-                `;
-                attacksList.appendChild(attackItem);
-            });
-        }
-        
-        if (charData.spells && charData.spells.length > 0) {
-            charData.spells.forEach((spell, index) => {
-                const spellItem = document.createElement('div');
-                spellItem.className = 'spell-item';
-                spellItem.dataset.index = index;
-                spellItem.innerHTML = `
-                    <div class="spell-header">
-                        <input type="text" placeholder="Название" data-field="name" value="${spell.name}" class="char-sheet-input spell-input spell-title" ${isGm ? 'readonly' : ''}>
-                        <input type="text" placeholder="Уровень" data-field="level" value="${spell.level}" class="char-sheet-input spell-input" ${isGm ? 'readonly' : ''}>
-                        ${!isGm ? '<button class="remove-spell-btn">&times;</button>' : ''}
-                    </div>
-                    <div class="spell-details">
-                        <input type="text" placeholder="Бонус атаки" data-field="attackBonus" value="${spell.attackBonus}" class="char-sheet-input spell-input" ${isGm ? 'readonly' : ''}>
-                        <input type="text" placeholder="Урон" data-field="damage" value="${spell.damage}" class="char-sheet-input spell-input" ${isGm ? 'readonly' : ''}>
-                        <input type="text" placeholder="Тип урона" data-field="damageType" value="${spell.damageType}" class="char-sheet-input spell-input" ${isGm ? 'readonly' : ''}>
-                    </div>
-                    <textarea placeholder="Описание" data-field="description" class="char-sheet-input spell-input" ${isGm ? 'readonly' : ''}>${spell.description}</textarea>
-                `;
-                spellsList.appendChild(spellItem);
-            });
-        }
-    }
-
-    function addAttack(parent) {
-        if (!currentCharacterData.attacks) currentCharacterData.attacks = [];
-        currentCharacterData.attacks.push({ name: '', bonus: '', damage: '', damageType: '' });
-        populateAttacksAndSpells(parent.closest('.character-sheet'), currentCharacterData);
-        saveSheetData();
-    }
-
-    function removeAttack(index) {
-        if (!currentCharacterData.attacks) return;
-        currentCharacterData.attacks.splice(index, 1);
-        populateAttacksAndSpells(sheetContainer.querySelector('.character-sheet'), currentCharacterData);
-        saveSheetData();
-    }
-    
-    function addSpell(parent) {
-        if (!currentCharacterData.spells) currentCharacterData.spells = [];
-        currentCharacterData.spells.push({ name: '', level: 'Заговор', attackBonus: '', damage: '', damageType: '', description: '' });
-        populateAttacksAndSpells(parent.closest('.character-sheet'), currentCharacterData);
-        saveSheetData();
-    }
-
-    function removeSpell(index) {
-        if (!currentCharacterData.spells) return;
-        currentCharacterData.spells.splice(index, 1);
-        populateAttacksAndSpells(sheetContainer.querySelector('.character-sheet'), currentCharacterData);
-        saveSheetData();
-    }
-    
-    function updateCalculatedFields(sheet, charData) {
-        if (!sheet || !charData) return;
-        
-        const proficiencyBonus = parseInt(charData.proficiencyBonus) || 0;
-
-        for (const key in ABILITIES) {
-            const score = parseInt(charData[key]) || 10;
-            const modifier = Math.floor((score - 10) / 2);
-            const modString = modifier >= 0 ? `+${modifier}` : modifier;
-            sheet.querySelector(`[data-field="${key}Modifier"]`).value = modString;
-            
-            const saveProficient = charData[`${key}SaveProficient`];
-            const saveBonus = modifier + (saveProficient ? proficiencyBonus : 0);
-            const saveBonusString = saveBonus >= 0 ? `+${saveBonus}` : saveBonus;
-            sheet.querySelector(`[data-field="${key}Save"]`).textContent = saveBonusString;
-        }
-        
-        const dexModifier = Math.floor(((parseInt(charData.dexterity) || 10) - 10) / 2);
-        sheet.querySelector('[data-field="initiative"]').value = dexModifier >= 0 ? `+${dexModifier}` : dexModifier;
-
-        for (const key in SKILLS) {
-            const skill = SKILLS[key];
-            const abilityScore = parseInt(charData[skill.ability]) || 10;
-            const abilityModifier = Math.floor((abilityScore - 10) / 2);
-            const isProficient = charData[`${key}Proficient`];
-            const skillBonus = abilityModifier + (isProficient ? proficiencyBonus : 0);
-            const skillBonusString = skillBonus >= 0 ? `+${skillBonus}` : skillBonus;
-            sheet.querySelector(`[data-field="${key}"]`).textContent = skillBonusString;
-        }
-    }
-
-    async function saveSheetData() {
-        if (!activeCharacterId) return;
-        if (isGm) return;
-
-        const sheet = sheetContainer.querySelector('.character-sheet');
-        if (!sheet) return;
-        
-        const dataToSave = { ...currentCharacterData };
-
-        // Сохранение простых полей
-        const inputs = sheet.querySelectorAll('.char-sheet-input:not(.attack-input):not(.spell-input)');
-        inputs.forEach(input => {
-            const field = input.dataset.field;
-            if (input.type === 'checkbox') {
-                dataToSave[field] = input.checked;
-            } else if (input.type === 'number') {
-                dataToSave[field] = parseInt(input.value) || 0;
-            } else {
-                dataToSave[field] = input.value;
+                    if (clickedObject) {
+                        const isMyCharacter = clickedObject._id === activeCharacterId;
+                        if (selectedCharacterForMove === clickedObject._id) {
+                            selectedCharacterForMove = null;
+                            mousePreviewPosition = null;
+                        } else if (isMyCharacter || isGm) {
+                            selectedCharacterForMove = clickedObject._id;
+                        } else if (currentCombatState && currentCombatState.isActive && (isGm || isMyTurn)) {
+                            const combatantId = currentCombatState.combatants.find(c => (c.characterId?.toString() || c._id.toString()) === clickedObject._id)?._id.toString();
+                            if (combatantId) socket.emit('combat:set_target', { targetId: combatantId });
+                        }
+                    } else if (selectedCharacterForMove) {
+                        const worldCoords = screenToWorldCoords(mouseX, mouseY);
+                        const charToMove = worldMapState.characters.find(c => c._id === selectedCharacterForMove);
+                        if (charToMove) {
+                            // Вместо прямой отправки на сервер, задаем цель для анимации
+                            animateTokenTo(charToMove, worldCoords.x, worldCoords.y);
+                        }
+                        selectedCharacterForMove = null;
+                        mousePreviewPosition = null;
+                    }
+                }
             }
         });
-        
-        // Сохранение атак
-        dataToSave.attacks = [];
-        const attackItems = sheet.querySelectorAll('.attack-item');
-        attackItems.forEach(item => {
-            const attack = {};
-            item.querySelectorAll('.attack-input').forEach(input => {
-                attack[input.dataset.field] = input.value;
-            });
-            dataToSave.attacks.push(attack);
-        });
 
-        // Сохранение заклинаний
-        dataToSave.spells = [];
-        const spellItems = sheet.querySelectorAll('.spell-item');
-        spellItems.forEach(item => {
-            const spell = {};
-            item.querySelectorAll('.spell-input').forEach(input => {
-                spell[input.dataset.field] = input.value;
-            });
-            dataToSave.spells.push(spell);
+        mainCanvas.addEventListener('mouseleave', () => {
+            isPanning = false;
+            mainCanvas.classList.remove('panning');
+            mousePreviewPosition = null;
         });
-        
-        currentCharacterData = dataToSave;
-        updateCalculatedFields(sheet, currentCharacterData);
-        populateAttacksAndSpells(sheet, currentCharacterData);
-
-        try {
-            await fetch(`${BACKEND_URL}/api/characters/${activeCharacterId}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${userData.token}`
-                },
-                body: JSON.stringify(dataToSave)
-            });
-            socket.emit('character:join', currentCharacterData);
-        } catch (error) {
-            console.error("Failed to save character sheet:", error);
-        }
     }
-    
-    sheetContainer.addEventListener('input', (e) => {
-        if (e.target.classList.contains('char-sheet-input')) {
-            clearTimeout(sheetUpdateTimeout);
-            sheetUpdateTimeout = setTimeout(saveSheetData, 1000);
-        }
-    });
 
-    // --- Динамическое создание панели кубиков ---
-    function createDiceRoller() {
-        const rightSidebar = document.querySelector('.right-sidebar');
-        if (!document.getElementById('dice-roller-panel')) {
-            const dicePanel = document.createElement('div');
-            dicePanel.id = 'dice-roller-panel';
-            dicePanel.className = 'sidebar-panel';
-            
-            dicePanel.innerHTML = `
-                <h3>Бросок кубиков</h3>
-                <div id="dice-result-display">-</div>
-                <div id="dice-buttons">
-                    <button data-dice="d4">d4</button>
-                    <button data-dice="d6">d6</button>
-                    <button data-dice="d8">d8</button>
-                    <button data-dice="d10">d10</button>
-                    <button data-dice="d12">d12</button>
-                    <button data-dice="d20">d20</button>
-                    <button data-dice="d100">d100</button>
-                </div>
-                <div id="dice-actions">
-                    <button id="roll-dice-btn">Бросить</button>
-                    <input type="number" id="manual-roll-input" placeholder="Вручную">
-                </div>
-            `;
-            rightSidebar.appendChild(dicePanel);
-            
-            const diceButtons = dicePanel.querySelector('#dice-buttons');
-            const rollBtn = dicePanel.querySelector('#roll-dice-btn');
-            const manualInput = dicePanel.querySelector('#manual-roll-input');
-            const resultDisplay = dicePanel.querySelector('#dice-result-display');
+    function setupDiceRoller() {
+        const diceRollerPanel = document.getElementById('dice-roller-panel');
+        if (diceRollerPanel) {
+            const diceButtons = diceRollerPanel.querySelector('#dice-buttons');
+            const rollBtn = diceRollerPanel.querySelector('#roll-dice-btn');
+            const manualInput = diceRollerPanel.querySelector('#manual-roll-input');
             let selectedDice = null;
-
             diceButtons.addEventListener('click', (e) => {
-                if(e.target.tagName === 'BUTTON') {
+                if (e.target.tagName === 'BUTTON') {
                     const currentActive = diceButtons.querySelector('.active');
-                    if(currentActive) currentActive.classList.remove('active');
+                    if (currentActive) currentActive.classList.remove('active');
                     e.target.classList.add('active');
                     selectedDice = e.target.dataset.dice;
                 }
             });
-
             rollBtn.addEventListener('click', () => {
                 if (selectedDice) {
                     const rollCommand = `/roll 1${selectedDice}`;
@@ -1238,17 +1539,61 @@ document.addEventListener('DOMContentLoaded', () => {
                     alert('Сначала выберите кубик!');
                 }
             });
-            
             manualInput.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') {
                     const value = manualInput.value;
-                    if(value) {
-                       sendLogMessage(`вручную вводит результат: ${value}`);
-                       manualInput.value = '';
+                    if (value) {
+                        sendLogMessage(`вручную вводит результат: ${value}`);
+                        manualInput.value = '';
                     }
                 }
             });
         }
+    }
+
+    // Новая функция для плавной анимации
+    function animateTokenTo(token, targetX, targetY) {
+        const duration = 800; // возвращаем нормальную длительность
+        const startX = token.worldMapX;
+        const startY = token.worldMapY;
+        const distanceX = targetX - startX;
+        const distanceY = targetY - startY;
+        let startTime = null;
+        
+        // Отмечаем токен как анимирующийся
+        animatingTokens.add(token._id);
+
+        // Функция easing для более плавной анимации
+        function easeInOutCubic(t) {
+            return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        }
+
+        function animationStep(currentTime) {
+            if (!startTime) {
+                startTime = currentTime;
+            }
+            
+            const elapsedTime = currentTime - startTime;
+            const progress = Math.min(elapsedTime / duration, 1);
+            const easedProgress = easeInOutCubic(progress);
+
+            token.worldMapX = startX + distanceX * easedProgress;
+            token.worldMapY = startY + distanceY * easedProgress;
+
+            if (progress < 1) {
+                requestAnimationFrame(animationStep);
+            } else {
+                // Как только анимация завершена, отправляем финальные координаты на сервер
+                token.worldMapX = targetX;
+                token.worldMapY = targetY;
+                
+                // Убираем токен из списка анимирующихся
+                animatingTokens.delete(token._id);
+                
+                socket.emit('worldmap:character:move', { charId: token._id, x: targetX, y: targetY });
+            }
+        }
+        requestAnimationFrame(animationStep);
     }
 
     // --- Запуск ---
