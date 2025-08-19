@@ -6,6 +6,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { Server } = require("socket.io");
 const { DiceRoll } = require('rpg-dice-roller');
+const { exec } = require('child_process');
 require('dotenv').config();
 
 const Character = require('./models/Character');
@@ -15,6 +16,20 @@ const WorldMap = require('./models/WorldMap');
 
 const app = express();
 const port = process.env.PORT || 8080;
+
+// Функция для очистки порта перед запуском
+const clearPort = (port) => {
+    return new Promise((resolve) => {
+        exec(`lsof -ti:${port} | xargs kill -9`, (error) => {
+            if (error) {
+                console.log(`Порт ${port} свободен или процессы уже завершены.`);
+            } else {
+                console.log(`Очищен порт ${port}.`);
+            }
+            resolve();
+        });
+    });
+};
 
 app.use(express.json());
 
@@ -271,10 +286,14 @@ async function loadInitialState() {
 mongoose.connect(process.env.MONGODB_URI)
     .then(() => {
         console.log("Успешное подключение к MongoDB!");
-        loadInitialState().then(() => {
-            httpServer.listen(port, () => {
-                console.log(`Node.js backend запущен на http://localhost:${port}`);
-            });
+        return clearPort(port); // Очищаем порт перед запуском
+    })
+    .then(() => {
+        return loadInitialState();
+    })
+    .then(() => {
+        httpServer.listen(port, () => {
+            console.log(`Node.js backend запущен на http://localhost:${port}`);
         });
     })
     .catch(err => {
@@ -503,4 +522,45 @@ io.on('connection', (socket) => {
             io.emit('combat:update', combatState);
         }
     });
+});
+
+// Правильная обработка завершения процесса
+const gracefulShutdown = (signal) => {
+    console.log(`\nПолучен сигнал ${signal}. Завершаем сервер...`);
+    
+    // Закрываем HTTP сервер
+    httpServer.close((err) => {
+        if (err) {
+            console.error('Ошибка при закрытии HTTP сервера:', err);
+            process.exit(1);
+        }
+        console.log('HTTP сервер закрыт.');
+        
+        // Закрываем подключение к MongoDB
+        mongoose.connection.close(() => {
+            console.log('Подключение к MongoDB закрыто.');
+            process.exit(0);
+        });
+    });
+    
+    // Принудительное завершение через 10 секунд
+    setTimeout(() => {
+        console.error('Принудительное завершение...');
+        process.exit(1);
+    }, 10000);
+};
+
+// Обработчики сигналов завершения
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+// Обработка необработанных ошибок
+process.on('uncaughtException', (error) => {
+    console.error('Необработанное исключение:', error);
+    gracefulShutdown('uncaughtException');
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Необработанное отклонение промиса:', promise, 'причина:', reason);
+    gracefulShutdown('unhandledRejection');
 });

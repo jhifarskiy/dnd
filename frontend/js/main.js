@@ -96,11 +96,121 @@ document.addEventListener('DOMContentLoaded', () => {
     const MAX_ZOOM = 3.0;
 
     // --- Константы для отрисовки ---
-    const TOKEN_RADIUS = 20;
+    const BASE_TOKEN_RADIUS = 18;  // Немного уменьшили базовый размер
+    const MIN_TOKEN_SIZE = 6;      // Минимальный размер токена в пикселях
+    const MAX_TOKEN_SIZE = 35;     // Максимальный размер токена в пикселях
+
+    // Функция для расчета размера токена в зависимости от масштаба
+    function getTokenRadius() {
+        // Более умеренное масштабирование: логарифмическая зависимость
+        const scaleFactor = Math.sqrt(viewTransform.scale); // Квадратный корень для смягчения
+        const scaledRadius = BASE_TOKEN_RADIUS * scaleFactor;
+        return Math.max(MIN_TOKEN_SIZE, Math.min(MAX_TOKEN_SIZE, scaledRadius));
+    }
 
     // --- СПИСКИ ДАННЫХ ДЛЯ ГЕНЕРАЦИИ ЛИСТА ---
     const ABILITIES = { strength: 'СИЛА', dexterity: 'ЛОВКОСТЬ', constitution: 'ТЕЛОСЛОЖЕНИЕ', intell: 'ИНТЕЛЛЕКТ', wisdom: 'МУДРОСТЬ', charisma: 'ХАРИЗМА' };
     const SKILLS = { acrobatics: { label: 'Акробатика', ability: 'dexterity' }, animalHandling: { label: 'Уход за животными', ability: 'wisdom' }, arcana: { label: 'Магия', ability: 'intell' }, athletics: { label: 'Атлетика', ability: 'strength' }, deception: { label: 'Обман', ability: 'charisma' }, history: { label: 'История', ability: 'intell' }, insight: { label: 'Проницательность', ability: 'wisdom' }, intimidation: { label: 'Запугивание', ability: 'charisma' }, investigation: { label: 'Анализ', ability: 'intell' }, medicine: { label: 'Медицина', ability: 'wisdom' }, nature: { label: 'Природа', ability: 'intell' }, perception: { label: 'Внимательность', ability: 'wisdom' }, performance: { label: 'Выступление', ability: 'charisma' }, persuasion: { label: 'Убеждение', ability: 'charisma' }, religion: { label: 'Религия', ability: 'intell' }, sleightOfHand: { label: 'Ловкость рук', ability: 'dexterity' }, stealth: { label: 'Скрытность', ability: 'dexterity' }, survival: { label: 'Выживание', ability: 'wisdom' } };
+
+    // --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ РАСЧЕТОВ D&D ---
+    function getAbilityModifier(abilityScore) {
+        return Math.floor((abilityScore - 10) / 2);
+    }
+
+    function getProficiencyBonus(level) {
+        return Math.ceil(level / 4) + 1;
+    }
+
+    // Функция для заполнения недостающих данных заклинаний
+    function fillMissingSpellData(item, stats, charData) {
+        const spellName = item.name.toLowerCase();
+        
+        // База недостающих заклинаний
+        const missingSpells = {
+            'магическая стрела': { damage: '3×(1к4+1)', damageType: 'силовой', needsAttack: false },
+            'ледяные пальцы': { damage: '1к10', damageType: 'колющий', needsAttack: false },
+            'волна грома': { damage: '2к8', damageType: 'звук', needsAttack: false },
+            'ведьмин снаряд': { damage: '1к12', damageType: 'электричество', needsAttack: true },
+            'громовой клинок': { damage: 'урон оружия', damageType: 'звук', needsAttack: true },
+            'вспышка мечей': { damage: '1к6', damageType: 'силовой', needsAttack: true },
+            'ледяной луч': { damage: '1к8', damageType: 'холод', needsAttack: true },
+            'клинок зелёного пламени': { damage: 'урон оружия', damageType: 'огонь', needsAttack: true },
+            'расщепление разума': { damage: '1к8', damageType: 'психический', needsAttack: false }
+        };
+        
+        const spellInfo = missingSpells[spellName];
+        if (spellInfo) {
+            // Если данных о БА еще нет и заклинание требует атаки
+            if (spellInfo.needsAttack && !stats.some(s => s.includes('БА:'))) {
+                const spellMod = getAbilityModifier(charData.intelligence || 10);
+                const level = parseInt(charData.classLevel) || parseInt(charData.level) || 1;
+                const profBonus = getProficiencyBonus(level);
+                const totalBonus = spellMod + profBonus;
+                stats.unshift(`БА: ${totalBonus >= 0 ? '+' : ''}${totalBonus}`);
+            }
+            
+            // Если данных об уроне еще нет
+            if (!stats.some(s => s.includes('к') || s.includes('урон'))) {
+                if (spellInfo.damage !== 'урон оружия') {
+                    stats.push(`${spellInfo.damage} ${spellInfo.damageType}`);
+                }
+            }
+        }
+    }
+
+    // --- БАЗА ДАННЫХ D&D 5E ОРУЖИЯ И ЗАКЛИНАНИЙ ---
+    const DND_WEAPONS = {
+        // Простое рукопашное оружие
+        'dagger': { name: 'Кинжал', damage: '1к4', damageType: 'Колющий', properties: 'Лёгкое, финесс, метательное (дистанция 20/60)', description: 'Лёгкий боевой клинок для ближнего боя или метания.' },
+        'club': { name: 'Дубинка', damage: '1к4', damageType: 'Дробящий', properties: 'Лёгкое', description: 'Простейшее оружие из дерева или кости.' },
+        'handaxe': { name: 'Ручной топор', damage: '1к6', damageType: 'Рубящий', properties: 'Лёгкое, метательное (дистанция 20/60)', description: 'Небольшой топор для одной руки.' },
+        'mace': { name: 'Булава', damage: '1к6', damageType: 'Дробящий', properties: '', description: 'Тяжёлая палица с металлической головкой.' },
+        'quarterstaff': { name: 'Боевой посох', damage: '1к6', damageType: 'Дробящий', properties: 'Универсальное (1к8)', description: 'Длинная деревянная палка, эффективная в двух руках.' },
+        'spear': { name: 'Копьё', damage: '1к6', damageType: 'Колющий', properties: 'Метательное (дистанция 20/60), универсальное (1к8)', description: 'Классическое колющее оружие с длинным древком.' },
+        
+        // Простое дальнобойное оружие
+        'dart': { name: 'Дротик', damage: '1к4', damageType: 'Колющий', properties: 'Финесс, метательное (дистанция 20/60)', description: 'Лёгкое метательное оружие.' },
+        'sling': { name: 'Праща', damage: '1к4', damageType: 'Дробящий', properties: 'Боеприпасы (дистанция 30/120)', description: 'Простое метательное оружие для камней.' },
+        'light_crossbow': { name: 'Лёгкий арбалет', damage: '1к8', damageType: 'Колющий', properties: 'Боеприпасы (дистанция 80/320), загрузка, двуручное', description: 'Компактный арбалет для точной стрельбы.' },
+        'shortbow': { name: 'Короткий лук', damage: '1к6', damageType: 'Колющий', properties: 'Боеприпасы (дистанция 80/320), двуручное', description: 'Лёгкий лук для быстрой стрельбы.' },
+        
+        // Воинское рукопашное оружие
+        'scimitar': { name: 'Скимитар', damage: '1к6', damageType: 'Рубящий', properties: 'Финесс, лёгкое', description: 'Изогнутый клинок для быстрых атак.' },
+        'shortsword': { name: 'Короткий меч', damage: '1к6', damageType: 'Колющий', properties: 'Финесс, лёгкое', description: 'Короткий прямой клинок для точных ударов.' },
+        'rapier': { name: 'Рапира', damage: '1к8', damageType: 'Колющий', properties: 'Финесс', description: 'Тонкий колющий клинок для дуэлей.' },
+        'longsword': { name: 'Длинный меч', damage: '1к8', damageType: 'Рубящий', properties: 'Универсальное (1к10)', description: 'Классический рыцарский меч.' },
+        'battleaxe': { name: 'Боевой топор', damage: '1к8', damageType: 'Рубящий', properties: 'Универсальное (1к10)', description: 'Тяжёлый топор для войны.' },
+        'warhammer': { name: 'Боевой молот', damage: '1к8', damageType: 'Дробящий', properties: 'Универсальное (1к10)', description: 'Тяжёлый молот с длинной рукоятью.' },
+        'greatsword': { name: 'Двуручный меч', damage: '2к6', damageType: 'Рубящий', properties: 'Тяжёлое, двуручное', description: 'Массивный меч, требующий обеих рук.' },
+        'greataxe': { name: 'Секира', damage: '1к12', damageType: 'Рубящий', properties: 'Тяжёлое, двуручное', description: 'Огромный двуручный топор.' },
+        'maul': { name: 'Кувалда', damage: '2к6', damageType: 'Дробящий', properties: 'Тяжёлое, двуручное', description: 'Массивный двуручный молот.' },
+        
+        // Воинское дальнобойное оружие
+        'longbow': { name: 'Длинный лук', damage: '1к8', damageType: 'Колющий', properties: 'Боеприпасы (дистанция 150/600), тяжёлое, двуручное', description: 'Мощный лук для дальней стрельбы.' },
+        'heavy_crossbow': { name: 'Тяжёлый арбалет', damage: '1к10', damageType: 'Колющий', properties: 'Боеприпасы (дистанция 100/400), тяжёлое, загрузка, двуручное', description: 'Мощный арбалет с большой пробивной силой.' }
+    };
+
+    const DND_SPELLS = {
+        // Заговоры (0 уровень)
+        'fire_bolt': { name: 'Огненный снаряд', level: 0, school: 'Воплощение', damage: '1к10', damageType: 'Огонь', range: '120 футов', castingTime: '1 действие', duration: 'Мгновенно', description: 'Вы запускаете сгусток огня в существо или предмет в пределах дистанции. Совершите дальнобойную атаку заклинанием.' },
+        'sacred_flame': { name: 'Священное пламя', level: 0, school: 'Воплощение', damage: '1к8', damageType: 'Излучение', range: '60 футов', castingTime: '1 действие', duration: 'Мгновенно', description: 'Пламеподобное излучение снисходит на существо, которое вы видите в пределах дистанции.' },
+        'eldritch_blast': { name: 'Мистический взрыв', level: 0, school: 'Воплощение', damage: '1к10', damageType: 'Силовое поле', range: '120 футов', castingTime: '1 действие', duration: 'Мгновенно', description: 'Луч потрескивающей энергии устремляется к существу в пределах дистанции.' },
+        'chill_touch': { name: 'Холодящее прикосновение', level: 0, school: 'Некромантия', damage: '1к8', damageType: 'Некротическая', range: '120 футов', castingTime: '1 действие', duration: 'Мгновенно', description: 'Вы создаёте призрачную, скелетную руку в пространстве существа в пределах дистанции.' },
+        
+        // 1 уровень
+        'magic_missile': { name: 'Волшебная стрела', level: 1, school: 'Воплощение', damage: '1к4+1', damageType: 'Силовое поле', range: '120 футов', castingTime: '1 действие', duration: 'Мгновенно', description: 'Вы создаёте три светящихся дротика магической силы. Каждый дротик попадает в выбранное существо.' },
+        'cure_wounds': { name: 'Лечение ран', level: 1, school: 'Воплощение', damage: '1к8+модификатор', damageType: 'Исцеление', range: 'Касание', castingTime: '1 действие', duration: 'Мгновенно', description: 'Существо, которого вы касаетесь, восстанавливает количество хитов.' },
+        'healing_word': { name: 'Слово лечения', level: 1, school: 'Воплощение', damage: '1к4+модификатор', damageType: 'Исцеление', range: '60 футов', castingTime: '1 бонусное действие', duration: 'Мгновенно', description: 'Существо по вашему выбору в пределах дистанции восстанавливает хиты.' },
+        'shield': { name: 'Щит', level: 1, school: 'Ограждение', damage: '', damageType: '', range: 'На себя', castingTime: '1 реакция', duration: '1 раунд', description: 'Невидимый барьер магической силы появляется и защищает вас, даруя +5 бонус к КД.' },
+        
+        // 2 уровень
+        'scorching_ray': { name: 'Палящий луч', level: 2, school: 'Воплощение', damage: '2к6', damageType: 'Огонь', range: '120 футов', castingTime: '1 действие', duration: 'Мгновенно', description: 'Вы создаёте три луча огня и запускаете их в цели в пределах дистанции.' },
+        'spiritual_weapon': { name: 'Духовное оружие', level: 2, school: 'Воплощение', damage: '1к8+модификатор', damageType: 'Силовое поле', range: '60 футов', castingTime: '1 бонусное действие', duration: 'Концентрация, до 1 минуты', description: 'Вы создаёте парящее призрачное оружие в пределах дистанции.' },
+        
+        // 3 уровень
+        'fireball': { name: 'Огненный шар', level: 3, school: 'Воплощение', damage: '8к6', damageType: 'Огонь', range: '150 футов', castingTime: '1 действие', duration: 'Мгновенно', description: 'Яркая вспышка огня вырывается из вашего пальца в точку, которую вы выбираете в пределах дистанции.' },
+        'lightning_bolt': { name: 'Молния', level: 3, school: 'Воплощение', damage: '8к6', damageType: 'Электричество', range: 'На себя (100-футовая линия)', castingTime: '1 действие', duration: 'Мгновенно', description: 'Молния толщиной 5 футов вырывается из вас в направлении, которое вы выберете.' }
+    };
 
     // ===================================================================
     // === НОВАЯ ЛОГИКА ДЛЯ ИНТЕРАКТИВНОГО БЛОКА АТАК И ЗАКЛИНАНИЙ (V5) ===
@@ -131,24 +241,130 @@ document.addEventListener('DOMContentLoaded', () => {
             li.dataset.index = item.originalIndex;
             li.dataset.type = item.type;
 
+            // Формируем статистики в строгом формате: БА: +X, урон, тип урона
             const stats = [];
-            if (item.bonus) stats.push(`БА: ${item.bonus}`);
-            if (item.damage) stats.push(item.damage);
-            if (item.damageType) stats.push(item.damageType);
+            
+            if (item.type === 'attack') {
+                // Бонус атаки - рассчитываем автоматически или используем сохраненный
+                const attackBonus = item.bonus || item.attackBonus;
+                if (attackBonus && attackBonus.trim() !== '') {
+                    const cleanBonus = attackBonus.replace(/[^+\-0-9]/g, '');
+                    if (cleanBonus) {
+                        stats.push(`БА: ${cleanBonus.startsWith('+') || cleanBonus.startsWith('-') ? cleanBonus : '+' + cleanBonus}`);
+                    }
+                } else {
+                    // Автоматический расчет БА для атак (Dex + Proficiency для финесных, Str + Proficiency для остальных)
+                    const dexMod = getAbilityModifier(charData.dexterity || 10);
+                    const strMod = getAbilityModifier(charData.strength || 10);
+                    const level = parseInt(charData.classLevel) || parseInt(charData.level) || 1;
+                    const profBonus = getProficiencyBonus(level);
+                    
+                    console.log(`[DEBUG] БА для ${item.name}: dex=${charData.dexterity}(${dexMod}), str=${charData.strength}(${strMod}), level=${level}, prof=${profBonus}`);
+                    
+                    // Для большинства оружия используем Dex (финесс оружие)
+                    const attackMod = Math.max(dexMod, strMod); // Берем лучший модификатор
+                    const totalBonus = attackMod + profBonus;
+                    stats.push(`БА: ${totalBonus >= 0 ? '+' : ''}${totalBonus}`);
+                }
+                
+                // Урон
+                if (item.damage && item.damage.trim() !== '') {
+                    stats.push(item.damage);
+                }
+                
+                // Тип урона
+                if (item.damageType && item.damageType.trim() !== '') {
+                    stats.push(item.damageType);
+                }
+                
+                // Дальность
+                if (item.range && item.range.trim() !== '') {
+                    stats.push(`Дальность: ${item.range}`);
+                }
+            } else if (item.type === 'spell') {
+                // Ищем заклинание в базе данных D&D по имени
+                let spellData = null;
+                for (const [key, spell] of Object.entries(DND_SPELLS)) {
+                    if (spell.name.toLowerCase() === item.name.toLowerCase()) {
+                        spellData = spell;
+                        break;
+                    }
+                }
+                
+                // Всегда рассчитываем и показываем БА для заклинаний с атакой
+                if (spellData) {
+                    // Для заклинаний с атакой показываем бонус атаки
+                    if (spellData.description && spellData.description.includes('атака заклинанием')) {
+                        const spellMod = getAbilityModifier(charData.intelligence || 10);
+                        const level = parseInt(charData.classLevel) || parseInt(charData.level) || 1;
+                        const profBonus = getProficiencyBonus(level);
+                        const totalBonus = spellMod + profBonus;
+                        stats.push(`БА: ${totalBonus >= 0 ? '+' : ''}${totalBonus}`);
+                    } else if (spellData.description && spellData.description.includes('СБ')) {
+                        // Для заклинаний со спасбросками показываем СЛ
+                        const spellMod = getAbilityModifier(charData.intelligence || 10);
+                        const level = parseInt(charData.classLevel) || parseInt(charData.level) || 1;
+                        const profBonus = getProficiencyBonus(level);
+                        const dc = 8 + spellMod + profBonus;
+                        stats.push(`СЛ ${dc}`);
+                    }
+                    
+                    // Урон из базы данных (БЕЗ лишних слов, убираем "Урон оружия")
+                    if (spellData.damage && spellData.damageType && 
+                        !spellData.damage.toLowerCase().includes('урон оружия')) {
+                        stats.push(`${spellData.damage} ${spellData.damageType}`);
+                    }
+                } else {
+                    // Заклинание не найдено в базе - используем данные из персонажа или создаем недостающие
+                    const attackBonus = item.bonus || item.attackBonus;
+                    if (attackBonus && attackBonus.trim() !== '') {
+                        stats.push(`БА: ${attackBonus}`);
+                    } else {
+                        // Рассчитываем БА для заклинания, если его нет
+                        const spellMod = getAbilityModifier(charData.intelligence || 10);
+                        const level = parseInt(charData.classLevel) || parseInt(charData.level) || 1;
+                        const profBonus = getProficiencyBonus(level);
+                        const totalBonus = spellMod + profBonus;
+                        stats.push(`БА: ${totalBonus >= 0 ? '+' : ''}${totalBonus}`);
+                    }
+                    
+                    if (item.save && item.save.trim() !== '') {
+                        stats.push(`СБ ${item.save}`);
+                    }
+                    
+                    if (item.damage && item.damage.trim() !== '' && 
+                        !item.damage.toLowerCase().includes('урон оружия')) {
+                        let damageText = item.damage;
+                        if (item.damageType && item.damageType.trim() !== '') {
+                            damageText += ` ${item.damageType}`;
+                        }
+                        stats.push(damageText);
+                    } else if (item.damage && item.damage.toLowerCase().includes('урон оружия')) {
+                        // Для заклинаний типа "Клинок зеленого пламени" - показываем приблизительный урон
+                        stats.push('1к8+модификатор оружие');
+                    }
+                    
+                    // Добавляем недостающие данные для известных заклинаний
+                    fillMissingSpellData(item, stats, charData);
+                    
+                    if (item.range && item.range.trim() !== '') {
+                        stats.push(`Дальность: ${item.range}`);
+                    }
+                }
+            }
 
             li.innerHTML = `
                 <div class="item-main-info">
                     <input type="checkbox" class="item-prepared-checkbox" title="Подготовлено" ${item.prepared ? 'checked' : ''} ${item.type === 'attack' ? 'style="visibility: hidden;"' : ''}>
                     <span class="item-name">${item.name || 'Без названия'}</span>
-                    <div class="item-description-marquee">
-                        <span class="marquee-text">${item.description || ''}</span>
-                    </div>
-                    <span class="item-stats">${stats.join(', ')}</span>
-                    <button class="item-info-btn" title="Показать описание">
-                        <img src="img/icons/info.svg" alt="Инфо" style="width: 12px; height: 12px;">
-                    </button>
-                    <button class="item-delete-btn" title="Удалить элемент">×</button>
                 </div>
+                <div class="item-description-marquee">
+                    <span class="marquee-text">${stats.join(' | ') || 'Нет данных'}</span>
+                </div>
+                <button class="item-info-btn" title="Показать описание">
+                    <img src="img/icons/info.svg" alt="Инфо" style="width: 12px; height: 12px;">
+                </button>
+                <button class="item-delete-btn" title="Удалить элемент">×</button>
                 <div class="item-description hidden">
                     <p>${item.description || ''}</p>
                 </div>`;
@@ -202,6 +418,45 @@ document.addEventListener('DOMContentLoaded', () => {
         const formSaveType = form.querySelector('input[placeholder="Тип спасброска"]');
         const formDescription = formContainer.querySelector('textarea[placeholder="Описание..."]');
         const formPrepared = formContainer.querySelector('input[type="checkbox"]');
+
+        // Автозаполнение для названия из базы данных D&D
+        if (formName) {
+            formName.addEventListener('input', () => {
+                const inputValue = formName.value.trim();
+                const currentType = formContainer.dataset.type;
+                
+                if (currentType === 'attack') {
+                    // Поиск в базе оружия
+                    for (const [key, weapon] of Object.entries(DND_WEAPONS)) {
+                        if (weapon.name.toLowerCase().includes(inputValue.toLowerCase()) && inputValue.length > 0) {
+                            // Показываем подсказку или автозаполняем при точном совпадении
+                            if (weapon.name.toLowerCase() === inputValue.toLowerCase()) {
+                                formDamage.value = weapon.damage;
+                                formDamageType.value = weapon.damageType;
+                                formDescription.value = `${weapon.description} ${weapon.properties}`;
+                                break;
+                            }
+                        }
+                    }
+                } else {
+                    // Поиск в базе заклинаний
+                    for (const [key, spell] of Object.entries(DND_SPELLS)) {
+                        if (spell.name.toLowerCase().includes(inputValue.toLowerCase()) && inputValue.length > 0) {
+                            // Показываем подсказку или автозаполняем при точном совпадении
+                            if (spell.name.toLowerCase() === inputValue.toLowerCase()) {
+                                if (spell.damage) {
+                                    formDamage.value = spell.damage;
+                                    formDamageType.value = spell.damageType;
+                                }
+                                formRange.value = spell.range;
+                                formDescription.value = spell.description;
+                                break;
+                            }
+                        }
+                    }
+                }
+            });
+        }
 
         // Навигация по уровням
         levelNav.addEventListener('click', e => {
@@ -258,6 +513,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const type = formContainer.dataset.type;
 
+                // Проверяем есть ли точное совпадение с базой данных D&D
+                if (type === 'attack') {
+                    for (const [key, weapon] of Object.entries(DND_WEAPONS)) {
+                        if (weapon.name === newItem.name) {
+                            newItem.weaponKey = key;
+                            newItem.description = `${weapon.description} ${weapon.properties}`;
+                            break;
+                        }
+                    }
+                } else {
+                    for (const [key, spell] of Object.entries(DND_SPELLS)) {
+                        if (spell.name === newItem.name) {
+                            newItem.spellKey = key;
+                            newItem.school = spell.school;
+                            newItem.castingTime = spell.castingTime;
+                            newItem.duration = spell.duration;
+                            newItem.description = spell.description;
+                            break;
+                        }
+                    }
+                }
+
                 // 2. Добавляем в нужный массив
                 if (type === 'attack') {
                     if (!currentCharacterData.attacks) currentCharacterData.attacks = [];
@@ -290,10 +567,102 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Кнопка "Инфо"
             if (e.target.classList.contains('item-info-btn') || e.target.closest('.item-info-btn')) {
-                const description = itemElement.querySelector('.item-description p')?.textContent;
                 const name = itemElement.querySelector('.item-name').textContent;
+                let detailedInfo = '';
+                
+                if (type === 'attack') {
+                    const item = currentCharacterData.attacks[index];
+                    
+                    // Ищем в базе данных D&D
+                    let weaponData = null;
+                    for (const [key, weapon] of Object.entries(DND_WEAPONS)) {
+                        if (weapon.name.toLowerCase() === name.toLowerCase()) {
+                            weaponData = weapon;
+                            break;
+                        }
+                    }
+                    
+                    if (weaponData) {
+                        // Используем данные из базы D&D
+                        detailedInfo = `
+🗡️ ОРУЖИЕ: ${weaponData.name}
+
+💥 Урон: ${weaponData.damage} ${weaponData.damageType}
+⚔️ Свойства: ${weaponData.properties || 'Нет особых свойств'}
+
+📖 Описание:
+${weaponData.description}`;
+                    } else {
+                        // Используем данные из персонажа
+                        const parts = [];
+                        if (item.bonus || item.attackBonus) {
+                            parts.push(`🎯 Бонус атаки: ${item.bonus || item.attackBonus}`);
+                        }
+                        if (item.damage) {
+                            parts.push(`💥 Урон: ${item.damage}${item.damageType ? ' ' + item.damageType : ''}`);
+                        }
+                        if (item.range) {
+                            parts.push(`📏 Дальность: ${item.range}`);
+                        }
+                        
+                        detailedInfo = parts.join('\n') + '\n\n📖 Описание:\n' + (item.description || 'Описание отсутствует.');
+                    }
+                    
+                } else if (type === 'spell') {
+                    const item = currentCharacterData.spells[index];
+                    
+                    // Ищем в базе данных D&D
+                    let spellData = null;
+                    for (const [key, spell] of Object.entries(DND_SPELLS)) {
+                        if (spell.name.toLowerCase() === name.toLowerCase()) {
+                            spellData = spell;
+                            break;
+                        }
+                    }
+                    
+                    if (spellData) {
+                        // Используем данные из базы D&D
+                        const levelText = spellData.level === 0 ? 'Заговор' : `${spellData.level} уровень`;
+                        detailedInfo = `
+✨ ЗАКЛИНАНИЕ: ${spellData.name}
+
+🎭 Уровень: ${levelText} (${spellData.school})
+⏱️ Время сотворения: ${spellData.castingTime}
+📏 Дистанция: ${spellData.range}
+⏳ Длительность: ${spellData.duration}`;
+                        
+                        if (spellData.damage) {
+                            detailedInfo += `\n💥 Урон: ${spellData.damage} ${spellData.damageType}`;
+                        }
+                        
+                        detailedInfo += `\n\n📖 Описание:\n${spellData.description}`;
+                        
+                    } else {
+                        // Используем данные из персонажа
+                        const parts = [];
+                        if (item.level !== undefined && item.level !== '') {
+                            const levelText = item.level === '0' || item.level === 0 ? 'Заговор' : `${item.level} уровень`;
+                            parts.push(`🎭 Уровень: ${levelText}`);
+                        }
+                        if (item.bonus || item.attackBonus) {
+                            parts.push(`🎯 Бонус атаки: ${item.bonus || item.attackBonus}`);
+                        }
+                        if (item.damage) {
+                            parts.push(`💥 Урон: ${item.damage}${item.damageType ? ' ' + item.damageType : ''}`);
+                        }
+                        if (item.range) {
+                            parts.push(`📏 Дальность: ${item.range}`);
+                        }
+                        if (item.save) {
+                            parts.push(`🛡️ Спасбросок: ${item.save}`);
+                        }
+                        
+                        detailedInfo = parts.join('\n') + '\n\n📖 Описание:\n' + (item.description || 'Описание отсутствует.');
+                    }
+                }
+                
                 infoModalTitle.textContent = name;
-                infoModalDescription.textContent = description || 'Описание отсутствует.';
+                infoModalDescription.textContent = detailedInfo;
                 itemInfoModal.classList.remove('hidden');
             }
 
@@ -379,14 +748,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 let buttonText = item.name || 'Без названия';
                 
                 if (activeActionTab === 'attacks') {
-                    buttonData = `data-type="attack" data-name="${item.name}" data-bonus="${item.bonus || ''}" data-damage="${item.damage || ''}" data-damage-type="${item.damageType || ''}"`;
+                    buttonData = `data-type="attack" data-index="${i}" data-name="${item.name}" data-bonus="${item.bonus || ''}" data-damage="${item.damage || ''}" data-damage-type="${item.damageType || ''}"`;
                 } else if (activeActionTab === 'spells') {
-                    buttonData = `data-type="spell" data-name="${item.name}" data-bonus="${item.attackBonus || ''}" data-damage="${item.damage || ''}" data-damage-type="${item.damageType || ''}" data-description="${item.description || ''}"`;
+                    buttonData = `data-type="spell" data-index="${i}" data-name="${item.name}" data-bonus="${item.attackBonus || ''}" data-damage="${item.damage || ''}" data-damage-type="${item.damageType || ''}" data-description="${item.description || ''}"`;
                     if (item.level !== '0' && item.level !== 0) {
                         buttonText += `<br><span style="font-size: 8px; opacity: 0.7;">${item.level} ур.</span>`;
                     }
                 } else if (activeActionTab === 'items') {
-                    buttonData = `data-type="item" data-name="${item.name}"`;
+                    buttonData = `data-type="item" data-index="${i}" data-name="${item.name}"`;
                     buttonText += `<br><span style="font-size: 8px; opacity: 0.7;">(${item.quantity || 1})</span>`;
                 }
                 
@@ -425,7 +794,274 @@ document.addEventListener('DOMContentLoaded', () => {
                     button.classList.add('long-text');
                 }
             });
+            
+            // Добавляем обработчики событий для tooltips
+            setupHotbarTooltips();
         }, 10);
+    }
+
+    // Функция для создания и управления tooltips в hotbar
+    function setupHotbarTooltips() {
+        const hotbarButtons = document.querySelectorAll('.hotbar-button:not([data-empty])');
+        let activeTooltip = null;
+        let hideTimeout = null;
+        
+        hotbarButtons.forEach(button => {
+            button.addEventListener('mouseenter', (e) => {
+                clearTimeout(hideTimeout);
+                
+                // Удаляем предыдущий tooltip
+                if (activeTooltip) {
+                    activeTooltip.remove();
+                    activeTooltip = null;
+                }
+                
+                const tooltip = createHotbarTooltip(button);
+                if (tooltip) {
+                    document.body.appendChild(tooltip);
+                    activeTooltip = tooltip;
+                    
+                    // Позиционируем tooltip
+                    setTimeout(() => {
+                        positionTooltip(button, tooltip);
+                        tooltip.classList.add('show');
+                    }, 10);
+                }
+            });
+            
+            button.addEventListener('mouseleave', () => {
+                hideTimeout = setTimeout(() => {
+                    if (activeTooltip) {
+                        activeTooltip.classList.remove('show');
+                        setTimeout(() => {
+                            if (activeTooltip) {
+                                activeTooltip.remove();
+                                activeTooltip = null;
+                            }
+                        }, 300);
+                    }
+                }, 100);
+            });
+        });
+    }
+
+    // Функция для создания tooltip с данными из листа персонажа
+    function createHotbarTooltip(button) {
+        const type = button.dataset.type;
+        const index = parseInt(button.dataset.index);
+        
+        if (!type || index === undefined) return null;
+        
+        const charData = currentCharacterData;
+        let itemData = null;
+        
+        if (type === 'attack' && charData.attacks && charData.attacks[index]) {
+            itemData = charData.attacks[index];
+        } else if (type === 'spell' && charData.spells && charData.spells[index]) {
+            itemData = charData.spells[index];
+        } else if (type === 'item' && charData.equipment && charData.equipment[index]) {
+            itemData = charData.equipment[index];
+        }
+        
+        if (!itemData) return null;
+        
+        const tooltip = document.createElement('div');
+        tooltip.className = `hotbar-tooltip tooltip-${type}`;
+        
+        if (type === 'attack') {
+            tooltip.innerHTML = createAttackTooltipHTML(itemData, charData);
+        } else if (type === 'spell') {
+            tooltip.innerHTML = createSpellTooltipHTML(itemData, charData);
+        } else if (type === 'item') {
+            tooltip.innerHTML = createItemTooltipHTML(itemData, charData);
+        }
+        
+        return tooltip;
+    }
+
+    // Создание HTML для tooltip атаки
+    function createAttackTooltipHTML(attack, charData) {
+        // Получаем данные из базы D&D 5e
+        const weaponData = attack.weaponKey ? DND_WEAPONS[attack.weaponKey] : null;
+        
+        // Рассчитываем бонус атаки (БА)
+        const profBonus = parseInt(charData.proficiencyBonus) || 0;
+        const strMod = parseInt(charData.strengthModifier) || 0;
+        const dexMod = parseInt(charData.dexterityModifier) || 0;
+        const attackBonus = profBonus + (weaponData?.finesse ? Math.max(strMod, dexMod) : 
+                           weaponData?.ranged ? dexMod : strMod);
+        const attackBonusStr = attackBonus >= 0 ? `+${attackBonus}` : `${attackBonus}`;
+        
+        const damageRoll = attack.damage || weaponData?.damage || '1d4';
+        const damageType = attack.damageType || weaponData?.damageType || 'колющий';
+        const range = weaponData?.range || 'Ближний бой';
+        const properties = weaponData?.properties || '';
+        
+        return `
+            <div class="tooltip-header">
+                <h3 class="tooltip-title">${attack.name}</h3>
+                <p class="tooltip-subtitle">Оружейная атака</p>
+            </div>
+            <div class="tooltip-body">
+                <div class="tooltip-stats">
+                    <div class="tooltip-stat">
+                        <span class="tooltip-stat-label">БА</span>
+                        <span class="tooltip-stat-value">${attackBonusStr}</span>
+                    </div>
+                    <div class="tooltip-stat">
+                        <span class="tooltip-stat-label">Урон</span>
+                        <span class="tooltip-stat-value">${damageRoll}</span>
+                    </div>
+                    <div class="tooltip-stat">
+                        <span class="tooltip-stat-label">Тип</span>
+                        <span class="tooltip-stat-value">${damageType}</span>
+                    </div>
+                    <div class="tooltip-stat">
+                        <span class="tooltip-stat-label">Дистанция</span>
+                        <span class="tooltip-stat-value">${range}</span>
+                    </div>
+                </div>
+                ${attack.description || weaponData?.description ? `
+                    <div class="tooltip-description">
+                        <div class="tooltip-description-title">Описание</div>
+                        <p class="tooltip-description-text">${attack.description || weaponData?.description || ''}</p>
+                        ${properties ? `
+                            <div class="tooltip-properties">
+                                ${properties.split(',').map(prop => 
+                                    `<span class="tooltip-property">${prop.trim()}</span>`
+                                ).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    // Создание HTML для tooltip заклинания
+    function createSpellTooltipHTML(spell, charData) {
+        // Получаем данные из базы D&D 5e
+        const spellData = spell.spellKey ? DND_SPELLS[spell.spellKey] : null;
+        
+        // Рассчитываем бонус заклинания (БА)
+        const profBonus = parseInt(charData.proficiencyBonus) || 0;
+        const intMod = parseInt(charData.intellModifier) || 0;
+        const wisMod = parseInt(charData.wisdomModifier) || 0;
+        const chaMod = parseInt(charData.charismaModifier) || 0;
+        const spellcastingMod = Math.max(intMod, wisMod, chaMod); // Берем наибольший
+        const spellBonus = profBonus + spellcastingMod;
+        const spellBonusStr = spellBonus >= 0 ? `+${spellBonus}` : `${spellBonus}`;
+        
+        const level = spell.level || spellData?.level || 0;
+        const levelText = level === 0 ? 'Заговор' : `${level} уровень`;
+        const school = spell.school || spellData?.school || 'Неизвестная школа';
+        const castingTime = spell.castingTime || spellData?.castingTime || '1 действие';
+        const range = spell.range || spellData?.range || '30 футов';
+        const damage = spell.damage || spellData?.damage;
+        const damageType = spell.damageType || spellData?.damageType;
+        const components = spellData?.components || 'В, С';
+        
+        return `
+            <div class="tooltip-header">
+                <h3 class="tooltip-title">${spell.name}</h3>
+                <p class="tooltip-subtitle">${levelText} • ${school}</p>
+            </div>
+            <div class="tooltip-body">
+                <div class="tooltip-stats">
+                    <div class="tooltip-stat">
+                        <span class="tooltip-stat-label">БА</span>
+                        <span class="tooltip-stat-value">${spellBonusStr}</span>
+                    </div>
+                    <div class="tooltip-stat">
+                        <span class="tooltip-stat-label">Время</span>
+                        <span class="tooltip-stat-value">${castingTime}</span>
+                    </div>
+                    <div class="tooltip-stat">
+                        <span class="tooltip-stat-label">Дистанция</span>
+                        <span class="tooltip-stat-value">${range}</span>
+                    </div>
+                    ${damage ? `
+                        <div class="tooltip-stat">
+                            <span class="tooltip-stat-label">Урон</span>
+                            <span class="tooltip-stat-value">${damage}</span>
+                        </div>
+                    ` : ''}
+                    ${damageType ? `
+                        <div class="tooltip-stat">
+                            <span class="tooltip-stat-label">Тип</span>
+                            <span class="tooltip-stat-value">${damageType}</span>
+                        </div>
+                    ` : ''}
+                </div>
+                ${spell.description || spellData?.description ? `
+                    <div class="tooltip-description">
+                        <div class="tooltip-description-title">Описание</div>
+                        <p class="tooltip-description-text">${spell.description || spellData?.description || ''}</p>
+                        <div class="tooltip-components">
+                            ${components.split(',').map(comp => {
+                                const trimmed = comp.trim();
+                                return `<span class="tooltip-component active">${trimmed}</span>`;
+                            }).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    // Создание HTML для tooltip предмета
+    function createItemTooltipHTML(item, charData) {
+        return `
+            <div class="tooltip-header">
+                <h3 class="tooltip-title">${item.name || item}</h3>
+                <p class="tooltip-subtitle">Предмет снаряжения</p>
+            </div>
+            <div class="tooltip-body">
+                <div class="tooltip-stats">
+                    <div class="tooltip-stat">
+                        <span class="tooltip-stat-label">Тип</span>
+                        <span class="tooltip-stat-value">Снаряжение</span>
+                    </div>
+                </div>
+                ${item.description ? `
+                    <div class="tooltip-description">
+                        <div class="tooltip-description-title">Описание</div>
+                        <p class="tooltip-description-text">${item.description}</p>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    // Позиционирование tooltip
+    function positionTooltip(button, tooltip) {
+        const buttonRect = button.getBoundingClientRect();
+        const tooltipRect = tooltip.getBoundingClientRect();
+        const viewport = {
+            width: window.innerWidth,
+            height: window.innerHeight
+        };
+        
+        // Позиционируем tooltip над кнопкой
+        let top = buttonRect.top - tooltipRect.height - 16;
+        let left = buttonRect.left + (buttonRect.width / 2) - (tooltipRect.width / 2);
+        
+        // Проверяем границы экрана
+        if (top < 10) {
+            // Если не помещается сверху, показываем снизу
+            top = buttonRect.bottom + 16;
+            tooltip.classList.add('top-positioned');
+        }
+        
+        if (left < 10) {
+            left = 10;
+        } else if (left + tooltipRect.width > viewport.width - 10) {
+            left = viewport.width - tooltipRect.width - 10;
+        }
+        
+        tooltip.style.position = 'fixed';
+        tooltip.style.top = `${top}px`;
+        tooltip.style.left = `${left}px`;
     }
 
     function populateSheet(charData) {
@@ -483,6 +1119,78 @@ document.addEventListener('DOMContentLoaded', () => {
         populateEquipment(sheet, charData);
         
         console.log('Sheet populated successfully');
+    }
+
+    // Функция для инициализации нового персонажа с базовым снаряжением
+    function initializeCharacterWithBasicEquipment(charData) {
+        // Инициализируем базовые атаки если их нет
+        if (!charData.attacks || charData.attacks.length === 0) {
+            charData.attacks = [
+                {
+                    name: DND_WEAPONS.dagger.name,
+                    bonus: '+2',
+                    damage: DND_WEAPONS.dagger.damage,
+                    damageType: DND_WEAPONS.dagger.damageType,
+                    weaponKey: 'dagger',
+                    description: `${DND_WEAPONS.dagger.description} ${DND_WEAPONS.dagger.properties}`
+                },
+                {
+                    name: DND_WEAPONS.shortbow.name,
+                    bonus: '+3',
+                    damage: DND_WEAPONS.shortbow.damage,
+                    damageType: DND_WEAPONS.shortbow.damageType,
+                    weaponKey: 'shortbow',
+                    description: `${DND_WEAPONS.shortbow.description} ${DND_WEAPONS.shortbow.properties}`
+                }
+            ];
+        }
+
+        // Инициализируем базовые заклинания если их нет
+        if (!charData.spells || charData.spells.length === 0) {
+            charData.spells = [
+                {
+                    name: DND_SPELLS.fire_bolt.name,
+                    level: DND_SPELLS.fire_bolt.level,
+                    damage: DND_SPELLS.fire_bolt.damage,
+                    damageType: DND_SPELLS.fire_bolt.damageType,
+                    spellKey: 'fire_bolt',
+                    school: DND_SPELLS.fire_bolt.school,
+                    range: DND_SPELLS.fire_bolt.range,
+                    castingTime: DND_SPELLS.fire_bolt.castingTime,
+                    duration: DND_SPELLS.fire_bolt.duration,
+                    description: DND_SPELLS.fire_bolt.description,
+                    prepared: true
+                },
+                {
+                    name: DND_SPELLS.sacred_flame.name,
+                    level: DND_SPELLS.sacred_flame.level,
+                    damage: DND_SPELLS.sacred_flame.damage,
+                    damageType: DND_SPELLS.sacred_flame.damageType,
+                    spellKey: 'sacred_flame',
+                    school: DND_SPELLS.sacred_flame.school,
+                    range: DND_SPELLS.sacred_flame.range,
+                    castingTime: DND_SPELLS.sacred_flame.castingTime,
+                    duration: DND_SPELLS.sacred_flame.duration,
+                    description: DND_SPELLS.sacred_flame.description,
+                    prepared: true
+                },
+                {
+                    name: DND_SPELLS.cure_wounds.name,
+                    level: DND_SPELLS.cure_wounds.level,
+                    damage: DND_SPELLS.cure_wounds.damage,
+                    damageType: DND_SPELLS.cure_wounds.damageType,
+                    spellKey: 'cure_wounds',
+                    school: DND_SPELLS.cure_wounds.school,
+                    range: DND_SPELLS.cure_wounds.range,
+                    castingTime: DND_SPELLS.cure_wounds.castingTime,
+                    duration: DND_SPELLS.cure_wounds.duration,
+                    description: DND_SPELLS.cure_wounds.description,
+                    prepared: false
+                }
+            ];
+        }
+
+        return charData;
     }
 
     /* СТАРАЯ ФУНКЦИЯ populateAttacksAndSpells ЗАКОММЕНТИРОВАНА, ТАК КАК ЗАМЕНЕНА НА V5
@@ -982,6 +1690,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch(`${BACKEND_URL}/api/characters/${id}`, { headers: { 'Authorization': `Bearer ${userData.token}` } });
             if (!response.ok) throw new Error('Character not found');
             currentCharacterData = await response.json();
+            
+            // Инициализируем базовое снаряжение для новых персонажей
+            currentCharacterData = initializeCharacterWithBasicEquipment(currentCharacterData);
+            
             activeCharacterId = id;
             
             // Сохраняем ID активного персонажа в localStorage
@@ -1142,16 +1854,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if (selectedCharacterForMove && mousePreviewPosition) {
             ctx.save();
             ctx.translate(mousePreviewPosition.x, mousePreviewPosition.y);
-            ctx.scale(1 / viewTransform.scale, 1 / viewTransform.scale);
             
-            // Рисуем полупрозрачный круг-предпросмотр
+            // Рисуем полупрозрачный круг-предпросмотр с учетом масштаба
+            const previewRadius = getTokenRadius();
+            const scaleFactor = Math.sqrt(viewTransform.scale);
             ctx.beginPath();
-            ctx.arc(0, 0, TOKEN_RADIUS, 0, Math.PI * 2);
+            ctx.arc(0, 0, previewRadius, 0, Math.PI * 2);
             ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
             ctx.fill();
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-            ctx.lineWidth = 2;
-            ctx.setLineDash([5, 5]);
+            ctx.lineWidth = Math.max(1, 2 * scaleFactor);
+            ctx.setLineDash([Math.max(3, 5 * scaleFactor), Math.max(3, 5 * scaleFactor)]);
             ctx.stroke();
             ctx.setLineDash([]);
             
@@ -1167,7 +1880,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const isTarget = currentTurnCombatant && combatantData && currentTurnCombatant.targetId === (combatantData.characterId?.toString() || combatantData._id.toString());
             ctx.save();
             ctx.translate(obj.worldMapX, obj.worldMapY);
-            ctx.scale(1 / viewTransform.scale, 1 / viewTransform.scale);
+            // Больше не компенсируем масштаб полностью - токены будут масштабироваться вместе с картой
             drawToken(obj, isSelected, isHovered, isTarget);
             ctx.restore();
         });
@@ -1184,33 +1897,39 @@ document.addEventListener('DOMContentLoaded', () => {
     function drawToken(obj, isSelected, isHovered, isTarget) {
         const isNpc = !obj.isPlayer;
         const color = isNpc ? 'rgba(229, 57, 53, 0.9)' : 'rgba(0, 184, 212, 0.9)';
+        const tokenRadius = getTokenRadius();
+        const scaleFactor = Math.sqrt(viewTransform.scale); // Тот же фактор для консистентности
+        
         ctx.beginPath();
-        ctx.arc(0, 0, TOKEN_RADIUS, 0, Math.PI * 2);
+        ctx.arc(0, 0, tokenRadius, 0, Math.PI * 2);
         ctx.fillStyle = color;
         ctx.fill();
         ctx.strokeStyle = 'rgba(0,0,0,0.5)';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = Math.max(1, 2 * scaleFactor);
         ctx.stroke();
         if (isTarget) {
             ctx.strokeStyle = 'rgba(255, 0, 0, 0.9)';
-            ctx.lineWidth = 4;
+            ctx.lineWidth = Math.max(2, 4 * scaleFactor);
             ctx.stroke();
         } else if (isSelected) {
             ctx.strokeStyle = 'rgba(255, 255, 0, 0.9)';
-            ctx.lineWidth = 4;
+            ctx.lineWidth = Math.max(2, 4 * scaleFactor);
             ctx.stroke();
         } else if (isHovered) {
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
-            ctx.lineWidth = 3;
+            ctx.lineWidth = Math.max(1.5, 3 * scaleFactor);
             ctx.stroke();
         }
+        
+        // Размер текста тоже масштабируем умеренно
+        const fontSize = Math.max(8, Math.min(16, 12 * scaleFactor));
         ctx.fillStyle = 'white';
-        ctx.font = 'bold 14px Montserrat';
+        ctx.font = `bold ${fontSize}px Montserrat`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
         ctx.shadowColor = 'black';
-        ctx.shadowBlur = 4;
-        ctx.fillText(obj.name, 0, -TOKEN_RADIUS - 5);
+        ctx.shadowBlur = 3;
+        ctx.fillText(obj.name, 0, -tokenRadius - 3 * scaleFactor);
         ctx.shadowBlur = 0;
     }
 
@@ -1260,12 +1979,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function findObjectUnderMouse(screenX, screenY) {
         const visibleObjects = getVisibleObjects();
+        const tokenRadius = getTokenRadius();
         for (let i = visibleObjects.length - 1; i >= 0; i--) {
             const obj = visibleObjects[i];
             const objScreenX = obj.worldMapX * viewTransform.scale + viewTransform.offsetX;
             const objScreenY = obj.worldMapY * viewTransform.scale + viewTransform.offsetY;
             const distance = Math.sqrt(Math.pow(screenX - objScreenX, 2) + Math.pow(screenY - objScreenY, 2));
-            if (distance <= TOKEN_RADIUS) {
+            if (distance <= tokenRadius) {
                 return obj;
             }
         }

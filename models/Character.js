@@ -9,17 +9,31 @@ const EquipmentSchema = new mongoose.Schema({
 const AttackSchema = new mongoose.Schema({
     name: { type: String, default: '' },
     bonus: { type: String, default: '' },
+    attackBonus: { type: String, default: '' }, // Альтернативное поле для совместимости
     damage: { type: String, default: '' },
-    damageType: { type: String, default: '' }
+    damageType: { type: String, default: '' },
+    range: { type: String, default: '' },
+    description: { type: String, default: '' },
+    prepared: { type: Boolean, default: false }, // Для совместимости с заклинаниями
+    weaponKey: { type: String, default: '' } // Ключ из базы данных D&D оружия
 }, { _id: false });
 
 const SpellSchema = new mongoose.Schema({
     name: { type: String, default: '' },
     level: { type: String, default: '' },
     attackBonus: { type: String, default: '' },
+    bonus: { type: String, default: '' }, // Альтернативное поле для бонуса атаки
     damage: { type: String, default: '' },
     damageType: { type: String, default: '' },
-    description: { type: String, default: '' }
+    range: { type: String, default: '' },
+    save: { type: String, default: '' }, // Тип спасброска
+    description: { type: String, default: '' },
+    prepared: { type: Boolean, default: false }, // Подготовлено ли заклинание
+    school: { type: String, default: '' }, // Школа магии
+    castingTime: { type: String, default: '' }, // Время произнесения
+    duration: { type: String, default: '' }, // Длительность
+    spellKey: { type: String, default: '' }, // Ключ из базы данных D&D
+    weaponKey: { type: String, default: '' } // Для атак - ключ оружия
 }, { _id: false });
 
 // Новая вложенная схема для денег

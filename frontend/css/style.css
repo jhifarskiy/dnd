@@ -823,7 +823,7 @@ select option:checked {
 
 /* === НИЖНЯЯ ПАНЕЛЬ ДЕЙСТВИЙ - УПРОЩЕННЫЙ СТИЛЬ === */
 #action-bar {
-    height: 120px; 
+    height: 130px; 
     flex-shrink: 0; 
     background: linear-gradient(135deg, var(--bg-light-accent), var(--bg-dark-secondary));
     border-radius: var(--border-radius-main);
@@ -1886,9 +1886,9 @@ select option:checked {
 
 .attack-spell-item {
     display: grid;
-    grid-template-columns: 1fr auto auto;
-    align-items: stretch; /* Изменено для лучшего выравнивания */
-    gap: 4px;
+    grid-template-columns: auto 1fr auto auto; /* Изменил структуру */
+    align-items: center; /* Выравнивание по центру вертикали */
+    gap: 6px; /* Увеличил gap */
     margin-bottom: 4px;
     padding: 6px 8px; /* Увеличил padding сверху и снизу */
     background: var(--bg-light-accent);
@@ -1899,9 +1899,9 @@ select option:checked {
 
 .item-main-info {
     display: grid;
-    grid-template-columns: auto 1fr 2fr auto auto auto;
+    grid-template-columns: auto 1fr; /* Упростил структуру: чекбокс и название */
     align-items: center;
-    gap: 4px;
+    gap: 6px;
     margin-bottom: 0;
     min-height: 24px;
 }
@@ -1987,38 +1987,31 @@ select option:checked {
     line-height: 1.3;
     flex-shrink: 0;
     min-width: 0;
-    white-space: normal; /* Разрешаем перенос */
+    white-space: nowrap; /* Название в одну строку */
     overflow: hidden;
-    display: -webkit-box;
-    -webkit-line-clamp: 2; /* Максимум 2 строки */
-    -webkit-box-orient: vertical;
     text-overflow: ellipsis;
-    max-height: 28px; /* Ограничиваем высоту для 2 строк */
+    max-width: 120px; /* Ограничиваем ширину названия, чтобы оставить место для БА */
 }
 
-/* Автопробегающее описание - теперь многострочное */
+/* Статистики в marquee-области */
 .item-description-marquee {
     overflow: hidden;
     position: relative;
     flex: 1;
     min-width: 0;
-    height: auto; /* Изменено с фиксированной высоты */
-    max-height: 32px; /* Ограничиваем максимальную высоту */
+    height: auto;
+    max-height: 20px; /* Уменьшил высоту, так как теперь статистики в одну строку */
     display: flex;
-    align-items: flex-start; /* Выравнивание по верху */
+    align-items: center; /* Выравнивание по центру */
 }
 
 .marquee-text {
     color: var(--text-secondary);
-    font-size: 10px; /* Уменьшил с 11px */
+    font-size: 10px;
     line-height: 1.2;
-    display: -webkit-box;
-    -webkit-line-clamp: 2; /* Максимум 2 строки */
-    line-clamp: 2; /* Стандартное свойство */
-    -webkit-box-orient: vertical;
+    white-space: nowrap; /* Статистики в одну строку */
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: normal; /* Разрешаем перенос */
 }
 
 /* Короткие тексты остаются на месте */
@@ -2074,6 +2067,186 @@ select option:checked {
 
 .item-info-btn:hover .info-icon {
     fill: white;
+}
+
+/* Альтернативный способ для img элементов */
+.item-info-btn:hover img {
+    filter: brightness(0) invert(1); /* Делает изображение белым */
+}
+
+/* === МОДАЛЬНЫЕ ОКНА ДЛЯ HOTBAR ЭЛЕМЕНТОВ === */
+.hotbar-tooltip {
+    position: absolute;
+    background: var(--bg-dark-primary);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-main);
+    padding: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(10px) scale(0.95);
+    transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    pointer-events: none;
+    max-width: 300px;
+    min-width: 250px;
+    color: var(--text-primary);
+    font-family: 'Montserrat', sans-serif;
+}
+
+.hotbar-tooltip.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+}
+
+.hotbar-tooltip::before {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-top: 8px solid var(--border-color);
+}
+
+.hotbar-tooltip.top-positioned::before {
+    bottom: auto;
+    top: -8px;
+    border-top: none;
+    border-bottom: 8px solid var(--border-color);
+}
+
+.tooltip-header {
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 8px;
+    margin-bottom: 8px;
+}
+
+.tooltip-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--accent-primary);
+    margin: 0 0 2px 0;
+    line-height: 1.2;
+}
+
+.tooltip-subtitle {
+    font-size: 10px;
+    color: var(--text-secondary);
+    margin: 0;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.tooltip-body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.tooltip-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+}
+
+.tooltip-stat {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--bg-light-accent);
+    padding: 4px 8px;
+    border-radius: var(--border-radius-small);
+    border: 1px solid var(--border-color);
+}
+
+.tooltip-stat-label {
+    font-size: 9px;
+    color: var(--text-secondary);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.tooltip-stat-value {
+    font-size: 10px;
+    color: var(--text-primary);
+    font-weight: 700;
+}
+
+.tooltip-description {
+    background: var(--bg-light-accent);
+    padding: 8px;
+    border-radius: var(--border-radius-small);
+    border: 1px solid var(--border-color);
+}
+
+.tooltip-description-title {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--accent-primary);
+    margin: 0 0 4px 0;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.tooltip-description-text {
+    font-size: 10px;
+    color: var(--text-primary);
+    line-height: 1.3;
+    margin: 0;
+}
+
+.tooltip-properties {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    margin-top: 6px;
+}
+
+.tooltip-property {
+    background: var(--accent-primary);
+    color: white;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-size: 8px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+/* Специальные стили для заклинаний */
+.tooltip-spell .tooltip-stats {
+    grid-template-columns: 1fr 1fr 1fr;
+}
+
+.tooltip-components {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 6px;
+}
+
+.tooltip-component {
+    background: var(--bg-dark-secondary);
+    color: var(--text-secondary);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 8px;
+    font-weight: 600;
+    border: 1px solid var(--border-color);
+}
+
+.tooltip-component.active {
+    background: var(--accent-primary);
+    color: white;
+    border-color: var(--accent-primary);
 }
 
 /* Кнопка удаления */
@@ -2625,19 +2798,32 @@ select option:checked {
 #info-modal-description {
     color: var(--text-secondary);
     font-size: 14px;
-    line-height: 1.4;
+    line-height: 1.5;
     margin: 0;
-    overflow-x: auto; /* Горизонтальный скролл */
-    overflow-y: hidden;
-    white-space: nowrap; /* Не переносим строки */
-    scrollbar-width: none; /* Убираем ползунок в Firefox */
-    -ms-overflow-style: none; /* Убираем ползунок в IE/Edge */
-    padding-bottom: 2px; /* Небольшой отступ снизу для скролла */
+    white-space: pre-line; /* Сохраняем переносы строк и пробелы */
+    max-height: 300px;
+    overflow-y: auto;
+    padding-right: 8px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) transparent;
 }
 
-/* Убираем ползунок горизонтального скролла в WebKit браузерах */
+/* Стили для скроллбара в модальном окне */
 #info-modal-description::-webkit-scrollbar {
-    display: none;
+    width: 6px;
+}
+
+#info-modal-description::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#info-modal-description::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 3px;
+}
+
+#info-modal-description::-webkit-scrollbar-thumb:hover {
+    background: var(--text-secondary);
 }
 
 /* Восстанавливаем перенос строк, если контент помещается */

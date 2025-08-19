@@ -5,7 +5,10 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "kill-port": "lsof -ti:8080 | xargs kill -9",
+    "restart": "npm run kill-port && npm start",
+    "clean-start": "npm run kill-port && node server.js"
   },
   "keywords": [
     "dnd",
