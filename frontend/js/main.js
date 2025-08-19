@@ -99,8 +99,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const TOKEN_RADIUS = 20;
 
     // --- СПИСКИ ДАННЫХ ДЛЯ ГЕНЕРАЦИИ ЛИСТА ---
-    const ABILITIES = { strength: 'СИЛА', dexterity: 'ЛОВКОСТЬ', constitution: 'ТЕЛОСЛОЖЕНИЕ', intelligence: 'ИНТЕЛЛЕКТ', wisdom: 'МУДРОСТЬ', charisma: 'ХАРИЗМА' };
-    const SKILLS = { acrobatics: { label: 'Акробатика', ability: 'dexterity' }, animalHandling: { label: 'Уход за животными', ability: 'wisdom' }, arcana: { label: 'Магия', ability: 'intelligence' }, athletics: { label: 'Атлетика', ability: 'strength' }, deception: { label: 'Обман', ability: 'charisma' }, history: { label: 'История', ability: 'intelligence' }, insight: { label: 'Проницательность', ability: 'wisdom' }, intimidation: { label: 'Запугивание', ability: 'charisma' }, investigation: { label: 'Анализ', ability: 'intelligence' }, medicine: { label: 'Медицина', ability: 'wisdom' }, nature: { label: 'Природа', ability: 'intelligence' }, perception: { label: 'Внимательность', ability: 'wisdom' }, performance: { label: 'Выступление', ability: 'charisma' }, persuasion: { label: 'Убеждение', ability: 'charisma' }, religion: { label: 'Религия', ability: 'intelligence' }, sleightOfHand: { label: 'Ловкость рук', ability: 'dexterity' }, stealth: { label: 'Скрытность', ability: 'dexterity' }, survival: { label: 'Выживание', ability: 'wisdom' } };
+    const ABILITIES = { strength: 'СИЛА', dexterity: 'ЛОВКОСТЬ', constitution: 'ТЕЛОСЛОЖЕНИЕ', intell: 'ИНТЕЛЛЕКТ', wisdom: 'МУДРОСТЬ', charisma: 'ХАРИЗМА' };
+    const SKILLS = { acrobatics: { label: 'Акробатика', ability: 'dexterity' }, animalHandling: { label: 'Уход за животными', ability: 'wisdom' }, arcana: { label: 'Магия', ability: 'intell' }, athletics: { label: 'Атлетика', ability: 'strength' }, deception: { label: 'Обман', ability: 'charisma' }, history: { label: 'История', ability: 'intell' }, insight: { label: 'Проницательность', ability: 'wisdom' }, intimidation: { label: 'Запугивание', ability: 'charisma' }, investigation: { label: 'Анализ', ability: 'intell' }, medicine: { label: 'Медицина', ability: 'wisdom' }, nature: { label: 'Природа', ability: 'intell' }, perception: { label: 'Внимательность', ability: 'wisdom' }, performance: { label: 'Выступление', ability: 'charisma' }, persuasion: { label: 'Убеждение', ability: 'charisma' }, religion: { label: 'Религия', ability: 'intell' }, sleightOfHand: { label: 'Ловкость рук', ability: 'dexterity' }, stealth: { label: 'Скрытность', ability: 'dexterity' }, survival: { label: 'Выживание', ability: 'wisdom' } };
 
     // ===================================================================
     // === НОВАЯ ЛОГИКА ДЛЯ ИНТЕРАКТИВНОГО БЛОКА АТАК И ЗАКЛИНАНИЙ (V5) ===
@@ -358,8 +358,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         actionBar.classList.remove('hidden');
 
-        // Создаем массив из 10 слотов
-        const totalSlots = 10;
+        // Создаем массив из 13 слотов
+        const totalSlots = 13;
         let items = [];
         let hotbarHTML = '';
         
@@ -416,13 +416,28 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
             <div class="hotbar-grid">${hotbarHTML}</div>
         </div>`;
+
+        // Добавляем класс long-text для кнопок с длинными названиями
+        setTimeout(() => {
+            document.querySelectorAll('.hotbar-button:not([data-empty])').forEach(button => {
+                const textLength = button.textContent.replace(/\s+/g, '').length;
+                if (textLength > 8) { // Если больше 8 символов
+                    button.classList.add('long-text');
+                }
+            });
+        }, 10);
     }
 
     function populateSheet(charData) {
+        console.log('Populating sheet with character data:', charData);
         const sheet = sheetContainer.querySelector('.cs-container');
-        if (!sheet) return;
+        if (!sheet) {
+            console.warn('Sheet container not found!');
+            return;
+        }
 
-        sheet.querySelectorAll('.char-sheet-input').forEach(input => {
+        // Заполняем все поля input, textarea, select с data-field атрибутом
+        sheet.querySelectorAll('input, textarea, select').forEach(input => {
             const field = input.dataset.field;
             const group = input.dataset.group;
             if (!field) return;
@@ -466,6 +481,8 @@ document.addEventListener('DOMContentLoaded', () => {
         populateAttacksAndSpellsV5(sheet, charData); // <--- ИСПОЛЬЗУЕМ НОВУЮ ФУНКЦИЮ
         setupAttacksAndSpellsEventListeners(sheet); // <--- ВЫЗЫВАЕМ НАСТРОЙКУ ОБРАБОТЧИКОВ
         populateEquipment(sheet, charData);
+        
+        console.log('Sheet populated successfully');
     }
 
     /* СТАРАЯ ФУНКЦИЯ populateAttacksAndSpells ЗАКОММЕНТИРОВАНА, ТАК КАК ЗАМЕНЕНА НА V5
@@ -565,16 +582,32 @@ document.addEventListener('DOMContentLoaded', () => {
             const skillBonusSpan = sheet.querySelector(`.cs-skills-v2 span[data-field="${key}"]`);
             if (skillBonusSpan) skillBonusSpan.textContent = skillBonusString;
         }
+
+        // Рассчитываем пассивную внимательность
+        const passivePerceptionInput = sheet.querySelector('[data-field="passivePerception"]');
+        if (passivePerceptionInput) {
+            const wisdomModifier = abilitiesModifiers['wisdom'] || 0;
+            const perceptionProficient = charData['perceptionProficient'];
+            const passivePerception = 10 + wisdomModifier + (perceptionProficient ? proficiencyBonus : 0);
+            passivePerceptionInput.value = passivePerception;
+        }
     }
 
     async function saveSheetData() {
-        if (!activeCharacterId || isGm) return;
+        if (!activeCharacterId || isGm) {
+            console.log('Save skipped: no active character or user is GM');
+            return;
+        }
         const sheet = sheetContainer.querySelector('.cs-container');
-        if (!sheet) return;
+        if (!sheet) {
+            console.log('Save skipped: no sheet container found');
+            return;
+        }
 
+        console.log('Starting to save sheet data for character:', activeCharacterId);
         const dataToSave = { ...currentCharacterData };
 
-        sheet.querySelectorAll('.char-sheet-input').forEach(input => {
+        sheet.querySelectorAll('input, textarea, select').forEach(input => {
             const field = input.dataset.field;
             const group = input.dataset.group;
             if (!field) return;
@@ -624,6 +657,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         currentCharacterData = dataToSave;
 
+        // Сохраняем данные локально как резервный вариант
+        try {
+            localStorage.setItem(`characterData_${activeCharacterId}`, JSON.stringify(dataToSave));
+        } catch (localError) {
+            console.warn("Failed to save character data locally:", localError);
+        }
+
         updateCalculatedFields(sheet, currentCharacterData);
         renderActionBar(currentCharacterData);
 
@@ -634,16 +674,70 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify(dataToSave)
             });
             socket.emit('character:update', currentCharacterData);
+            console.log('Character data saved successfully to server');
         } catch (error) {
             console.error("Failed to save character sheet:", error);
+            // Если сохранение на сервер не удалось, пробуем восстановить из localStorage
+            alert('Не удалось сохранить данные на сервер. Данные сохранены локально.');
         }
     }
 
     sheetContainer.addEventListener('input', (e) => {
-        if (e.target.closest('.char-sheet-input')) {
-            // Исключаем инпуты из нового блока, они сохраняются по кнопке
-            if (e.target.closest('.cs-attacks-v5')) return;
+        // Сохраняем изменения для всех input и textarea в листе персонажа
+        if (e.target.matches('input, textarea, select') && 
+            !e.target.closest('.cs-attacks-v5') && 
+            activeCharacterId) {
+            
+            console.log('Character sheet field changed:', e.target.dataset.field || e.target.name, e.target.value);
+            console.log('Active character ID:', activeCharacterId);
+            
+            // Немедленно обновляем расчетные поля при изменении характеристик
+            const sheet = sheetContainer.querySelector('.cs-container');
+            const fieldName = e.target.dataset.field;
+            if (sheet && fieldName && (
+                fieldName === 'strength' || fieldName === 'dexterity' || fieldName === 'constitution' ||
+                fieldName === 'intell' || fieldName === 'wisdom' || fieldName === 'charisma' ||
+                fieldName === 'proficiencyBonus'
+            )) {
+                // Обновляем currentCharacterData с новым значением перед пересчетом
+                if (e.target.type === 'number') {
+                    currentCharacterData[fieldName] = parseInt(e.target.value) || 0;
+                } else {
+                    currentCharacterData[fieldName] = e.target.value;
+                }
+                updateCalculatedFields(sheet, currentCharacterData);
+            }
+            
+            clearTimeout(sheetUpdateTimeout);
+            sheetUpdateTimeout = setTimeout(saveSheetData, 500);
+        }
+    });
 
+    sheetContainer.addEventListener('change', (e) => {
+        // Дополнительно обрабатываем change события для checkbox и select
+        if (e.target.matches('input[type="checkbox"], select') && 
+            !e.target.closest('.cs-attacks-v5') && 
+            activeCharacterId) {
+            
+            console.log('Character sheet field changed (change event):', e.target.dataset.field || e.target.name, e.target.checked || e.target.value);
+            
+            // Обновляем currentCharacterData с новым значением чекбокса
+            const fieldName = e.target.dataset.field;
+            const groupName = e.target.dataset.group;
+            
+            if (fieldName && groupName) {
+                if (!currentCharacterData[groupName]) currentCharacterData[groupName] = {};
+                currentCharacterData[groupName][fieldName] = e.target.checked;
+            } else if (fieldName) {
+                currentCharacterData[fieldName] = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+            }
+            
+            // Немедленно обновляем расчетные поля при изменении чекбоксов навыков/спасбросков
+            const sheet = sheetContainer.querySelector('.cs-container');
+            if (sheet && fieldName && (fieldName.includes('Proficient') || fieldName.includes('Save'))) {
+                updateCalculatedFields(sheet, currentCharacterData);
+            }
+            
             clearTimeout(sheetUpdateTimeout);
             sheetUpdateTimeout = setTimeout(saveSheetData, 500);
         }
@@ -896,10 +990,37 @@ document.addEventListener('DOMContentLoaded', () => {
             // Обновляем UI селектора персонажей
             updateCharacterSelectorUI(currentCharacterData);
             
+            // Если лист персонажа открыт, обновляем его данными нового персонажа
+            if (sheetContainer && sheetContainer.querySelector('.cs-container')) {
+                populateSheet(currentCharacterData);
+            }
+            
             socket.emit('character:update', currentCharacterData);
             renderActionBar(currentCharacterData);
         } catch (error) {
             console.error("Failed to load character:", error);
+            
+            // Пробуем загрузить из localStorage как резервный вариант
+            try {
+                const localData = localStorage.getItem(`characterData_${id}`);
+                if (localData) {
+                    currentCharacterData = JSON.parse(localData);
+                    activeCharacterId = id;
+                    localStorage.setItem('activeCharacterId', id);
+                    updateCharacterSelectorUI(currentCharacterData);
+                    
+                    if (sheetContainer && sheetContainer.querySelector('.cs-container')) {
+                        populateSheet(currentCharacterData);
+                    }
+                    
+                    renderActionBar(currentCharacterData);
+                    console.warn("Загружены локально сохраненные данные персонажа");
+                    return;
+                }
+            } catch (localError) {
+                console.error("Failed to load local character data:", localError);
+            }
+            
             // Если персонаж не найден, очищаем сохраненный ID
             localStorage.removeItem('activeCharacterId');
         }
@@ -953,8 +1074,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     activeCharacterId = null;
                     currentCharacterData = {};
                     actionBar.innerHTML = '';
-                    // Очищаем сохраненный ID персонажа
+                    // Очищаем сохраненный ID персонажа и локальные данные
                     localStorage.removeItem('activeCharacterId');
+                    localStorage.removeItem(`characterData_${selectedId}`);
                     // Сбрасываем UI селектора
                     if (characterSelectorWrapper) characterSelectorWrapper.dataset.value = '';
                     if (characterSelectorTrigger) characterSelectorTrigger.querySelector('span').textContent = '-- Выберите персонажа --';
@@ -1351,13 +1473,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('Сначала загрузите персонажа!');
                 return;
             }
+            
             try {
-                const response = await fetch('character-sheet.html');
-                if (!response.ok) {
-                    throw new Error('Не удалось загрузить файл character-sheet.html');
+                // Проверяем, нужно ли загружать HTML заново
+                if (sheetContainer.children.length === 0 || !sheetContainer.querySelector('.cs-container')) {
+                    const response = await fetch('character-sheet.html');
+                    if (!response.ok) {
+                        throw new Error('Не удалось загрузить файл character-sheet.html');
+                    }
+                    const sheetHTML = await response.text();
+                    sheetContainer.innerHTML = sheetHTML;
                 }
-                const sheetHTML = await response.text();
-                sheetContainer.innerHTML = sheetHTML;
+                
+                // Всегда заполняем лист актуальными данными при открытии
                 populateSheet(currentCharacterData);
                 sheetModal.classList.remove('hidden');
             } catch (error) {

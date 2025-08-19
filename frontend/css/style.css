@@ -77,7 +77,8 @@ body {
     font-family: 'Montserrat', sans-serif;
     background: linear-gradient(to bottom right, #121f44, #420b16);
     color: var(--text-primary);
-    overflow: auto;
+    overflow-x: hidden; /* Запрещаем горизонтальную прокрутку */
+    overflow-y: auto;
 }
 
 .hidden { display: none !important; }
@@ -229,85 +230,42 @@ display: grid;
 
 /* Общие стили для кнопок, инпутов и селектов */
 button {
-    background: linear-gradient(135deg, var(--accent-primary), rgba(54, 137, 239, 0.8));
+    background-color: var(--accent-primary);
     color: #fff;
     font-weight: 700;
-    border: 1px solid var(--accent-primary);
+    border: none;
     border-radius: 50px;
     padding: 8px 10px;
     cursor: pointer;
     font-size: 12px;
     font-family: 'Montserrat', sans-serif;
-    transition: all 0.2s ease;
+    transition: all var(--transition-speed) ease;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     white-space: nowrap;
     display: flex;
     align-items: center;
     justify-content: center;
-    position: relative;
-    overflow: hidden;
-    backdrop-filter: blur(4px);
-    box-shadow: 
-        0 4px 12px rgba(54, 137, 239, 0.3),
-        inset 0 1px 0 rgba(255, 255, 255, 0.2);
-}
-
-button::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, 
-        transparent, 
-        rgba(255, 255, 255, 0.3), 
-        transparent
-    );
-    transition: left 0.3s ease;
 }
 
 button:hover {
-    background: linear-gradient(135deg, var(--accent-primary-hover), var(--accent-primary));
-    border-color: var(--accent-primary-hover);
-    box-shadow: 
-        0 6px 20px rgba(54, 137, 239, 0.4),
-        inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    background-color: var(--accent-primary-hover);
+    box-shadow: 0 4px 15px rgba(var(--accent-primary-rgb), 0.2);
     transform: translateY(-2px);
 }
 
-button:hover::before {
-    left: 100%;
-}
-
 button:active {
-    transform: translateY(-1px) scale(0.98);
-    box-shadow: 
-        0 2px 8px rgba(54, 137, 239, 0.3),
-        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    transform: translateY(0);
+    box-shadow: none;
 }
 
 button#deleteCharacterBtn, button#endCombatBtn {
-    background: linear-gradient(135deg, var(--accent-danger), rgba(229, 57, 53, 0.8));
+    background-color: var(--accent-danger);
     color: var(--text-primary);
-    border-color: var(--accent-danger);
 }
-
-button#deleteCharacterBtn::before, button#endCombatBtn::before {
-    background: linear-gradient(90deg, 
-        transparent, 
-        rgba(255, 255, 255, 0.2), 
-        transparent
-    );
-}
-
 button#deleteCharacterBtn:hover, button#endCombatBtn:hover {
-    background: linear-gradient(135deg, var(--accent-danger-hover), var(--accent-danger));
-    border-color: var(--accent-danger-hover);
-    box-shadow: 
-        0 6px 20px rgba(229, 57, 53, 0.4),
-        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    background-color: var(--accent-danger-hover);
+    box-shadow: 0 4px 15px rgba(229, 57, 53, 0.2);
 }
 
 input[type="text"], input[type="number"], select, textarea {
@@ -586,37 +544,17 @@ select option:checked {
     justify-content: center;
     cursor: pointer;
     opacity: 0;
-    transition: opacity 0.2s, color 0.2s, transform 0.2s, box-shadow 0.2s;
+    transition: opacity 0.2s, color 0.2s, transform 0.2s;
     flex-shrink: 0;
-    position: relative;
-    overflow: hidden;
 }
-
-.remove-combatant-btn::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: radial-gradient(circle, rgba(229, 57, 53, 0.2) 0%, transparent 70%);
-    opacity: 0;
-    transition: opacity 0.2s ease;
-}
-
 #initiativeTracker li:hover .remove-combatant-btn {
     opacity: 1;
 }
-
 .remove-combatant-btn:hover {
     background: transparent;
     color: var(--accent-danger);
+    box-shadow: none;
     transform: scale(1.2);
-    box-shadow: 0 0 8px rgba(229, 57, 53, 0.3);
-}
-
-.remove-combatant-btn:hover::before {
-    opacity: 1;
 }
 
 
@@ -655,83 +593,44 @@ select option:checked {
     min-height: 32px;
     border-radius: var(--border-radius-small);
     border: 2px solid var(--accent-primary);
-    background: linear-gradient(135deg, var(--accent-primary), rgba(54, 137, 239, 0.8));
+    background: var(--accent-primary);
     color: white;
     font-size: 16px;
     font-weight: bold;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all var(--transition-speed) ease;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    position: relative;
-    overflow: hidden;
-    box-shadow: 
-        0 4px 12px rgba(54, 137, 239, 0.3),
-        inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
-.icon-btn::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, 
-        transparent, 
-        rgba(255, 255, 255, 0.3), 
-        transparent
-    );
-    transition: left 0.3s ease;
-}
+/* Убираем специальные размеры - делаем все кнопки одинаковыми */
 
 .icon-btn:hover {
     border-color: var(--accent-primary-hover);
-    background: linear-gradient(135deg, var(--accent-primary-hover), var(--accent-primary));
-    transform: scale(1.05) translateY(-1px);
-    box-shadow: 
-        0 6px 20px rgba(54, 137, 239, 0.4),
-        inset 0 1px 0 rgba(255, 255, 255, 0.3);
-}
-
-.icon-btn:hover::before {
-    left: 100%;
+    background: var(--accent-primary-hover);
+    transform: scale(1.05);
 }
 
 .icon-btn.delete-btn {
-    border: 2px solid var(--bg-dark-secondary);
-    background: linear-gradient(135deg, var(--bg-dark-secondary), rgba(26, 33, 56, 0.8));
+    border: none;
+    background: var(--bg-dark-secondary);
     color: var(--text-primary);
-    box-shadow: 
-        0 4px 12px rgba(0, 0, 0, 0.2),
-        inset 0 1px 0 rgba(255, 255, 255, 0.1);
-}
-
-.icon-btn.delete-btn::before {
-    background: linear-gradient(90deg, 
-        transparent, 
-        rgba(255, 255, 255, 0.1), 
-        transparent
-    );
 }
 
 .icon-btn.delete-btn:hover {
     border-color: var(--accent-danger);
-    background: linear-gradient(135deg, var(--accent-danger), rgba(229, 57, 53, 0.8));
+    background: var(--accent-danger);
     color: white;
-    transform: scale(1.05) translateY(-1px);
-    box-shadow: 
-        0 6px 20px rgba(229, 57, 53, 0.4),
-        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    transform: scale(1.05);
 }
 
 .sheet-btn {
     flex: 1;
     height: 32px;
     padding: 0 10px;
-    background: linear-gradient(135deg, var(--bg-light-accent), rgba(36, 44, 72, 0.8));
+    background: var(--bg-light-accent);
     color: var(--text-primary);
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius-small);
@@ -739,46 +638,18 @@ select option:checked {
     font-weight: 600;
     text-transform: uppercase;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all var(--transition-speed) ease;
     min-width: 0;
     white-space: nowrap;
     display: flex;
     align-items: center;
     justify-content: center;
-    position: relative;
-    overflow: hidden;
-    box-shadow: 
-        0 2px 8px rgba(0, 0, 0, 0.1),
-        inset 0 1px 0 rgba(255, 255, 255, 0.1);
-}
-
-.sheet-btn::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, 
-        transparent, 
-        rgba(54, 137, 239, 0.2), 
-        transparent
-    );
-    transition: left 0.3s ease;
 }
 
 .sheet-btn:hover {
     border-color: var(--accent-primary);
-    background: linear-gradient(135deg, var(--accent-primary), rgba(54, 137, 239, 0.8));
+    background: var(--accent-primary);
     color: white;
-    transform: translateY(-1px);
-    box-shadow: 
-        0 4px 15px rgba(54, 137, 239, 0.3),
-        inset 0 1px 0 rgba(255, 255, 255, 0.2);
-}
-
-.sheet-btn:hover::before {
-    left: 100%;
 }
 
 /* Убираем старые стили */
@@ -842,44 +713,14 @@ select option:checked {
     font-weight: 500;
 }
 #logoutBtn {
-    background: linear-gradient(135deg, var(--bg-light-accent), rgba(36, 44, 72, 0.8));
+    background-color: var(--bg-light-accent);
     color: var(--text-secondary);
     padding: 6px 12px;
     font-size: 12px;
-    border: 1px solid var(--border-color);
-    position: relative;
-    overflow: hidden;
-    box-shadow: 
-        0 2px 8px rgba(0, 0, 0, 0.1),
-        inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
-
-#logoutBtn::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, 
-        transparent, 
-        rgba(229, 57, 53, 0.2), 
-        transparent
-    );
-    transition: left 0.3s ease;
-}
-
 #logoutBtn:hover {
-    color: white;
-    background: linear-gradient(135deg, var(--accent-danger), rgba(229, 57, 53, 0.8));
-    border-color: var(--accent-danger);
-    box-shadow: 
-        0 4px 15px rgba(229, 57, 53, 0.3),
-        inset 0 1px 0 rgba(255, 255, 255, 0.2);
-}
-
-#logoutBtn:hover::before {
-    left: 100%;
+    color: var(--text-primary);
+    background-color: var(--border-color);
 }
 
 /* === Модальное окно Листа Персонажа === */
@@ -954,7 +795,7 @@ select option:checked {
     position: absolute;
     top: 15px;
     right: 15px;
-    background: linear-gradient(135deg, var(--bg-dark-secondary), rgba(26, 33, 56, 0.8));
+    background: var(--bg-dark-secondary);
     border: 1px solid var(--border-color);
     border-radius: 50%;
     color: var(--text-secondary);
@@ -970,83 +811,29 @@ select option:checked {
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s ease;
-    position: relative;
-    overflow: hidden;
-    box-shadow: 
-        0 2px 8px rgba(0, 0, 0, 0.2),
-        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    transition: all var(--transition-speed) ease;
 }
-
-.close-btn::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, 
-        transparent, 
-        rgba(229, 57, 53, 0.3), 
-        transparent
-    );
-    transition: left 0.3s ease;
-}
-
 .close-btn:hover {
-    color: white;
+    color: var(--text-primary);
+    background: var(--accent-danger);
     border-color: var(--accent-danger);
-    background-image: linear-gradient(135deg, rgb(45, 55, 88), rgb(26, 33, 56));
-    transform: rotate(90deg) scale(1.05);
-    box-shadow: 
-        0 4px 15px rgba(229, 57, 53, 0.4),
-        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    color: white;
+    transform: rotate(90deg);
 }
 
-.close-btn:hover::before {
-    left: 100%;
-}
-
-/* === НИЖНЯЯ ПАНЕЛЬ ДЕЙСТВИЙ В СТИЛЕ BG3 === */
+/* === НИЖНЯЯ ПАНЕЛЬ ДЕЙСТВИЙ - УПРОЩЕННЫЙ СТИЛЬ === */
 #action-bar {
     height: 120px; 
     flex-shrink: 0; 
-    background: linear-gradient(135deg, 
-        rgba(19, 25, 42, 0.95), 
-        rgba(26, 33, 56, 0.95), 
-        rgba(36, 44, 72, 0.95)
-    );
-    backdrop-filter: blur(8px);
-    border: 2px solid rgba(54, 137, 239, 0.3);
-    border-radius: 24px;
+    background: linear-gradient(135deg, var(--bg-light-accent), var(--bg-dark-secondary));
+    border-radius: var(--border-radius-main);
     padding: 12px;
     display: grid;
     grid-template-columns: auto 1fr;
     align-items: center;
     gap: 12px;
     overflow: visible;
-    position: relative;
-    box-shadow: 
-        0 8px 32px rgba(0, 0, 0, 0.4),
-        inset 0 1px 0 rgba(255, 255, 255, 0.1),
-        0 0 0 1px rgba(54, 137, 239, 0.2);
-}
-
-/* Декоративная сетка как в BG3 */
-#action-bar::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-image: 
-        radial-gradient(circle at 25% 25%, rgba(54, 137, 239, 0.1) 2px, transparent 2px),
-        radial-gradient(circle at 75% 75%, rgba(54, 137, 239, 0.05) 1px, transparent 1px);
-    background-size: 20px 20px, 10px 10px;
-    border-radius: 22px;
-    pointer-events: none;
-    opacity: 0.6;
+    box-shadow: -5px 5px 10.5px rgba(0, 0, 0, 0.25);
 }
 
 .action-bar-section {
@@ -1054,8 +841,6 @@ select option:checked {
     display: flex;
     align-items: center;
     gap: 12px;
-    position: relative;
-    z-index: 1;
 }
 
 .action-bar-left {
@@ -1071,6 +856,7 @@ select option:checked {
     gap: 6px;
     min-height: 80px;
     max-width: 100%;
+    overflow: hidden; /* Обрезаем выходящий контент */
 }
 
 /* Верхний ряд с табами и кнопкой завершения хода */
@@ -1082,12 +868,12 @@ select option:checked {
     justify-content: center;
 }
 
-/* Портрет персонажа в стиле BG3 */
+/* Портрет персонажа - упрощенный стиль */
 .char-portrait {
     width: 80px;
     height: 80px;
     border-radius: 50%;
-    border: 3px solid var(--accent-primary);
+    border: 2px solid var(--accent-primary);
     background: linear-gradient(135deg, var(--bg-light-accent), var(--bg-dark-secondary));
     display: flex;
     align-items: center;
@@ -1095,263 +881,173 @@ select option:checked {
     font-size: 2em;
     font-weight: 700;
     color: var(--accent-primary);
-    position: relative;
-    box-shadow: 
-        0 4px 16px rgba(0, 0, 0, 0.3),
-        inset 0 2px 4px rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
 }
 
-.char-portrait::after {
-    content: '';
-    position: absolute;
-    top: -6px;
-    left: -6px;
-    right: -6px;
-    bottom: -6px;
-    border: 2px solid transparent;
-    border-radius: 50%;
-    background: linear-gradient(45deg, var(--accent-primary), transparent, var(--accent-primary)) border-box;
-    -webkit-mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
-    -webkit-mask-composite: exclude;
-    mask: linear-gradient(#fff 0 0) padding-box, linear-gradient(#fff 0 0);
-    mask-composite: exclude;
-    animation: portrait-glow 3s ease-in-out infinite alternate;
-}
-
-@keyframes portrait-glow {
-    0% { opacity: 0.6; }
-    100% { opacity: 1; }
-}
-
-/* Сетка действий в стиле BG3 */
+/* Сетка действий - упрощенный стиль */
 .hotbar-grid {
     display: grid;
-    grid-template-columns: repeat(10, 1fr);
-    gap: 4px;
-    padding: 7px;
-    background: rgba(19, 25, 42, 0.4);
-    border: 1px solid rgba(54, 137, 239, 0.2);
-    border-radius: 12px;
-    backdrop-filter: blur(4px);
-    min-height: 52px;
-    max-width: 520px;
+    grid-template-columns: repeat(13, 1fr); /* Увеличил с 10 до 13 */
+    gap: 6px; /* Увеличил gap с 4px до 6px */
+    padding: 8px;
+    background-color: var(--bg-dark-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 25px;
+    min-height: 56px;
+    max-width: 100%; /* Убрал фиксированную ширину */
     width: 100%;
-    position: relative;
+    overflow-x: auto; /* Горизонтальный скролл */
+    overflow-y: hidden;
 }
 
-.hotbar-grid::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(90deg, 
-        transparent 0%, 
-        rgba(54, 137, 239, 0.05) 50%, 
-        transparent 100%
-    );
-    border-radius: 15px;
-    pointer-events: none;
+/* Стили для скроллбара hotbar */
+.hotbar-grid::-webkit-scrollbar {
+    display: none; /* Скрываем скроллбар */
 }
 
-/* Слоты действий */
+.hotbar-grid {
+    -ms-overflow-style: none;  /* IE и Edge */
+    scrollbar-width: none;  /* Firefox */
+}
+
+/* Слоты действий - упрощенный стиль */
 .hotbar-button {
-    width: 44px;
-    height: 44px;
-    background: linear-gradient(135deg, 
-        rgba(36, 44, 72, 0.8), 
-        rgba(26, 33, 56, 0.8)
-    );
-    border: 2px solid rgba(58, 68, 102, 0.6);
-    border-radius: 10px;
-    font-size: 8px;
+    width: 48px;
+    height: 48px;
+    background-color: var(--bg-light-accent);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-small);
+    font-size: 7px;
     color: var(--text-primary);
-    padding: 3px;
-    line-height: 1.1;
-    word-break: break-word;
+    padding: 2px;
+    line-height: 1.0;
     display: flex;
     align-items: center;
     justify-content: center;
     text-align: center;
-    position: relative;
-    transition: all 0.2s ease;
+    transition: all var(--transition-speed) ease;
     cursor: pointer;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
     overflow: hidden;
+    white-space: nowrap;
+    position: relative;
 }
 
-.hotbar-button::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(45deg, 
-        transparent 30%, 
-        rgba(54, 137, 239, 0.1) 50%, 
-        transparent 70%
-    );
-    opacity: 0;
-    transition: opacity 0.2s ease;
+/* Бегущая строка только для длинных текстов */
+.hotbar-button.long-text {
+    justify-content: flex-start;
+    text-align: left;
+    overflow: hidden; /* Обрезаем выходящий текст */
+    white-space: nowrap; /* Запрещаем перенос строк */
+    max-width: 100%; /* Ограничиваем ширину */
+}
+
+/* Анимация только при наведении */
+.hotbar-button.long-text:hover {
+    animation: quickScroll 4s ease-in-out infinite;
+    animation-delay: 0.2s; /* Небольшая задержка перед началом */
+}
+
+@keyframes quickScroll {
+    0%, 2% { 
+        text-indent: 0; 
+    }
+    70% { 
+        text-indent: -100px; 
+    }
+    100% { 
+        text-indent: 0; 
+    }
 }
 
 .hotbar-button:hover {
     transform: translateY(-2px);
     border-color: var(--accent-primary);
-    box-shadow: 
-        0 6px 20px rgba(0, 0, 0, 0.3),
-        0 0 20px rgba(54, 137, 239, 0.4),
-        inset 0 1px 0 rgba(255, 255, 255, 0.1);
-    background: linear-gradient(135deg, 
-        rgba(54, 137, 239, 0.2), 
-        rgba(36, 44, 72, 0.9)
-    );
-}
-
-.hotbar-button:hover::before {
-    opacity: 1;
+    background-color: var(--accent-primary);
+    color: white;
+    box-shadow: 0 4px 15px rgba(var(--accent-primary-rgb), 0.2);
 }
 
 .hotbar-button.active {
     border-color: var(--accent-primary);
-    background: linear-gradient(135deg, 
-        rgba(54, 137, 239, 0.3), 
-        rgba(36, 44, 72, 0.9)
-    );
-    box-shadow: 
-        0 4px 16px rgba(0, 0, 0, 0.3),
-        0 0 16px rgba(54, 137, 239, 0.6),
-        inset 0 2px 4px rgba(54, 137, 239, 0.2);
+    background-color: var(--accent-primary);
     color: white;
     font-weight: 600;
 }
 
 .hotbar-button:empty {
-    background: linear-gradient(135deg, 
-        rgba(26, 33, 56, 0.3), 
-        rgba(19, 25, 42, 0.3)
-    );
-    border: 2px dashed rgba(58, 68, 102, 0.4);
+    background-color: var(--bg-dark-secondary);
+    border: 1px dashed var(--border-color);
+    opacity: 0.6;
 }
 
 .hotbar-button:empty::after {
     content: '+';
-    color: rgba(161, 163, 227, 0.4);
+    color: var(--text-secondary);
     font-size: 18px;
     font-weight: 300;
 }
 
 .hotbar-button:active {
-    transform: translateY(-1px) scale(0.95);
+    transform: translateY(0) scale(0.95);
 }
 
-/* Анимация при загрузке слотов */
-.hotbar-button {
-    animation: slot-appear 0.3s ease forwards;
-}
-
-@keyframes slot-appear {
-    from {
-        opacity: 0;
-        transform: translateY(10px) scale(0.8);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
-}
-
-/* Задержка анимации для каждого слота */
-.hotbar-button:nth-child(1) { animation-delay: 0.05s; }
-.hotbar-button:nth-child(2) { animation-delay: 0.1s; }
-.hotbar-button:nth-child(3) { animation-delay: 0.15s; }
-.hotbar-button:nth-child(4) { animation-delay: 0.2s; }
-.hotbar-button:nth-child(5) { animation-delay: 0.25s; }
-.hotbar-button:nth-child(6) { animation-delay: 0.3s; }
-.hotbar-button:nth-child(7) { animation-delay: 0.35s; }
-.hotbar-button:nth-child(8) { animation-delay: 0.4s; }
-.hotbar-button:nth-child(9) { animation-delay: 0.45s; }
-.hotbar-button:nth-child(10) { animation-delay: 0.5s; }
-
-/* Кнопки табов без контейнера */
+/* Кнопки табов - упрощенный стиль */
 .tab-button {
-    background: rgba(19, 25, 42, 0.6);
+    background-color: var(--bg-light-accent);
     color: var(--text-secondary);
     padding: 6px 12px;
     font-size: 10px;
-    border-radius: 50px;
-    border: 1px solid rgba(54, 137, 239, 0.2);
-    transition: all 0.2s ease;
-    font-weight: 500;
-    position: relative;
-    overflow: hidden;
+    border-radius: var(--border-radius-small);
+    border: 1px solid var(--border-color);
+    transition: all var(--transition-speed) ease;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
     white-space: nowrap;
-    backdrop-filter: blur(4px);
-}
-
-.tab-button::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: -100%;
-    width: 100%;
-    height: 100%;
-    background: linear-gradient(90deg, 
-        transparent, 
-        rgba(54, 137, 239, 0.3), 
-        transparent
-    );
-    transition: left 0.3s ease;
+    cursor: pointer;
+    font-family: 'Montserrat', sans-serif;
 }
 
 .tab-button:hover {
     color: var(--text-primary);
-    background: rgba(54, 137, 239, 0.1);
-    border-color: rgba(54, 137, 239, 0.3);
-    transform: translateY(-1px);
-}
-
-.tab-button:hover::before {
-    left: 100%;
+    background-color: var(--accent-primary);
+    border-color: var(--accent-primary);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(var(--accent-primary-rgb), 0.2);
 }
 
 .tab-button.active {
-    background: linear-gradient(135deg, var(--accent-primary), rgba(54, 137, 239, 0.8));
+    background-color: var(--accent-primary);
     color: white;
     font-weight: 700;
     border-color: var(--accent-primary);
-    box-shadow: 
-        0 4px 12px rgba(54, 137, 239, 0.4),
-        inset 0 1px 0 rgba(255, 255, 255, 0.2);
-}
-
-.tab-button.active::before {
-    display: none;
 }
 
 /* Кнопка завершения хода */
 .end-turn-button {
-    background: linear-gradient(135deg, var(--accent-danger), rgba(229, 57, 53, 0.8));
+    background-color: var(--accent-danger);
     color: white;
     padding: 6px 12px;
     font-size: 10px;
-    border-radius: 50px;
+    border-radius: var(--border-radius-small);
     border: 1px solid var(--accent-danger);
-    transition: all 0.2s ease;
+    transition: all var(--transition-speed) ease;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     white-space: nowrap;
     cursor: pointer;
     flex-shrink: 0;
+    font-family: 'Montserrat', sans-serif;
 }
 
 .end-turn-button:hover {
-    background: linear-gradient(135deg, var(--accent-danger-hover), var(--accent-danger));
+    background-color: var(--accent-danger-hover);
     border-color: var(--accent-danger-hover);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 15px rgba(229, 57, 53, 0.3);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(229, 57, 53, 0.2);
 }
 
 .end-turn-button.disabled {
@@ -1383,11 +1079,17 @@ select option:checked {
     background-color: var(--bg-dark-secondary);
     border: 1px solid var(--border-color);
     border-radius: 12px;
-    padding: 8px 12px;
+    padding: 15px 18px;
     color: var(--text-primary);
     font-family: 'Montserrat', sans-serif;
     font-size: 14px;
     transition: all var(--transition-speed) ease;
+    line-height: 1.4;
+}
+
+.cs-container textarea {
+    min-height: 120px;
+    resize: vertical;
 }
 
 .cs-container input:focus,
@@ -1977,7 +1679,27 @@ select option:checked {
     border-radius: 8px;
     border: 1px solid var(--border-color);
 }
-.cs-bio-v2 .bio-item textarea { min-height: 40px; resize: none; padding: 2px 0; text-align: left; }
+.cs-bio-v2 .bio-item textarea { 
+    min-height: 120px; 
+    resize: vertical; 
+    padding: 15px 18px; 
+    text-align: left; 
+    background-color: var(--bg-dark-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    color: var(--text-primary);
+    font-family: 'Montserrat', sans-serif;
+    font-size: 14px;
+    line-height: 1.4;
+    transition: all var(--transition-speed) ease;
+}
+
+.cs-bio-v2 .bio-item textarea:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px rgba(var(--accent-primary-rgb), 0.2);
+    background-color: var(--bg-light-accent);
+}
 .cs-features-v2 textarea { flex-grow: 1; resize: none; padding: 5px; border: none; background: transparent; }
 
 /* === ИНТЕРАКТИВНЫЙ БЛОК АТАК/ЗАКЛИНАНИЙ (V5) === */
@@ -2101,6 +1823,7 @@ select option:checked {
 
 .cs-level-nav-scroller {
     display: flex;
+    justify-content: center;
     gap: 5px;
     padding: 5px 0;
     overflow-x: auto;
@@ -2164,14 +1887,14 @@ select option:checked {
 .attack-spell-item {
     display: grid;
     grid-template-columns: 1fr auto auto;
-    align-items: center;
+    align-items: stretch; /* Изменено для лучшего выравнивания */
     gap: 4px;
     margin-bottom: 4px;
-    padding: 4px 8px;
+    padding: 6px 8px; /* Увеличил padding сверху и снизу */
     background: var(--bg-light-accent);
     border-radius: var(--border-radius-small);
     border: 1px solid var(--border-color);
-    min-height: 32px;
+    min-height: 40px; /* Увеличил высоту для многострочного текста */
 }
 
 .item-main-info {
@@ -2260,46 +1983,42 @@ select option:checked {
 .item-name {
     font-weight: 600;
     color: var(--text-primary);
+    font-size: 11px; /* Уменьшил с 12px */
+    line-height: 1.3;
     flex-shrink: 0;
     min-width: 0;
-    white-space: nowrap;
+    white-space: normal; /* Разрешаем перенос */
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2; /* Максимум 2 строки */
+    -webkit-box-orient: vertical;
+    text-overflow: ellipsis;
+    max-height: 28px; /* Ограничиваем высоту для 2 строк */
 }
 
-/* Автопробегающее описание */
+/* Автопробегающее описание - теперь многострочное */
 .item-description-marquee {
     overflow: hidden;
-    white-space: nowrap;
     position: relative;
     flex: 1;
     min-width: 0;
-    height: 16px;
+    height: auto; /* Изменено с фиксированной высоты */
+    max-height: 32px; /* Ограничиваем максимальную высоту */
     display: flex;
-    align-items: center;
+    align-items: flex-start; /* Выравнивание по верху */
 }
 
 .marquee-text {
     color: var(--text-secondary);
-    font-size: 11px;
-    line-height: 1;
-    display: inline-block;
-    white-space: nowrap;
-}
-
-/* Анимация только для длинных текстов */
-.marquee-text.long-text {
-    animation: marquee 15s linear infinite;
-    animation-delay: 2s;
-    padding-left: 100%; /* Начинаем за пределами контейнера */
-}
-
-/* Анимация автопробега */
-@keyframes marquee {
-    0% {
-        transform: translateX(0);
-    }
-    100% {
-        transform: translateX(-100%);
-    }
+    font-size: 10px; /* Уменьшил с 11px */
+    line-height: 1.2;
+    display: -webkit-box;
+    -webkit-line-clamp: 2; /* Максимум 2 строки */
+    line-clamp: 2; /* Стандартное свойство */
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: normal; /* Разрешаем перенос */
 }
 
 /* Короткие тексты остаются на месте */
@@ -2311,11 +2030,14 @@ select option:checked {
 
 .item-stats {
     color: var(--text-secondary);
-    font-size: 11px;
+    font-size: 10px; /* Уменьшил с 11px */
+    line-height: 1.2;
     flex-shrink: 0;
     text-align: right;
     white-space: nowrap;
     min-width: 60px;
+    align-self: flex-start; /* Выравнивание по верху */
+    padding-top: 2px; /* Небольшой отступ сверху */
 }
 
 /* Стилизованная иконка информации */
@@ -2837,6 +2559,20 @@ select option:checked {
 .cs-additional-features {
     grid-column: 1 / span 3;
     grid-row: 3 / span 1; /* Полная ширина внизу */
+}
+
+/* === Стили для панели кубиков === */
+#dice-buttons {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+    gap: 8px;
+    max-width: 100%;
+    justify-content: center;
+}
+
+/* Кнопка "Бросить" растягивается на оставшееся место */
+#roll-dice-btn {
+    grid-column: span 2; /* Занимает 2 колонки */
 }
 
 /* === Модальное окно информации о элементе === */
